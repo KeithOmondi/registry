@@ -1,52 +1,123 @@
-// store/slices/reportsSlice.ts
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import {
+  createSlice,
+  createAsyncThunk,
+  type PayloadAction,
+} from "@reduxjs/toolkit";
 import api from "../../api/axios";
 
-interface ReportState {
-  summary: any;
-  courtPerformance: any[];
+export interface Court {
+  _id: string;
+  name: string;
+}
+
+export type Form60Compliance = "Approved" | "Rejected";
+export type StatusAtGP = "Pending" | "Published";
+
+export interface Record {
+  _id: string;
+  no: number;
+  causeNo: string;
+  nameOfDeceased: string;
+  courtStation: Court;
+  dateReceived: string;
+  dateOfReceipt?: string;
+  dateForwardedToGP?: string;
+  receivingLeadTime: number | null;
+  forwardingLeadTime: number | null;
+  form60Compliance: Form60Compliance;
+  rejectionReason?: string;
+  statusAtGP: StatusAtGP;
+  kpiAlertSent: boolean;
+}
+
+export interface RecordStats {
+  total: number;
+  compliance: { approved: number; rejected: number };
+  gpStatus: { pending: number; published: number };
+  kpiBreaches: number;
+  averages: { receivingLeadTime: number; forwardingLeadTime: number };
+}
+
+/* ================== ASYNC THUNKS ================== */
+export const fetchRecords = createAsyncThunk<Record[]>(
+  "records/fetchAll",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await api.get("/records/get");
+      return res.data.records;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  },
+);
+
+export const fetchRecordStats = createAsyncThunk<RecordStats>(
+  "records/fetchStats",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await api.get("/records/stats");
+      return res.data.data.summary[0]; // Matches updated controller
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
+  },
+);
+
+/* ================== SLICE ================== */
+interface RecordsState {
+  records: Record[];
+  stats: RecordStats | null;
   loading: boolean;
   error: string | null;
 }
 
-const initialState: ReportState = {
-  summary: null,
-  courtPerformance: [],
+const initialState: RecordsState = {
+  records: [],
+  stats: null,
   loading: false,
   error: null,
 };
 
-export const fetchAnalytics = createAsyncThunk(
-  "reports/fetchAnalytics",
-  async (courtId: string = "all", { rejectWithValue }) => {
-    try {
-      const response = await api.get(`/reports/analytics?courtId=${courtId}`);
-      return response.data.data;
-    } catch (err: any) {
-      return rejectWithValue(err.response.data.message);
-    }
-  }
-);
-
-const reportsSlice = createSlice({
-  name: "reports",
+const recordSlice = createSlice({
+  name: "records",
   initialState,
-  reducers: {},
+  reducers: {
+    clearRecordsError(state) {
+      state.error = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchAnalytics.pending, (state) => {
-        state.loading = true;
-      })
-      .addCase(fetchAnalytics.fulfilled, (state, action) => {
-        state.loading = false;
-        state.summary = action.payload.summary[0] || null;
-        state.courtPerformance = action.payload.courtPerformance;
-      })
-      .addCase(fetchAnalytics.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      });
+      .addCase(
+        fetchRecords.fulfilled,
+        (state, action: PayloadAction<Record[]>) => {
+          state.records = action.payload;
+          state.loading = false;
+        },
+      )
+      .addCase(
+        fetchRecordStats.fulfilled,
+        (state, action: PayloadAction<RecordStats>) => {
+          state.stats = action.payload;
+          state.loading = false;
+        },
+      )
+      .addMatcher(
+        (action) => action.type.endsWith("/pending"),
+        (state) => {
+          state.loading = true;
+          state.error = null;
+        },
+      )
+      .addMatcher(
+        (action) => action.type.endsWith("/rejected"),
+        (state, action: PayloadAction<string>) => {
+          state.loading = false;
+          state.error = action.payload || "An unexpected error occurred";
+        },
+      );
   },
 });
 
-export default reportsSlice.reducer;
+export const { clearRecordsError } = recordSlice.actions;
+export default recordSlice.reducer;
