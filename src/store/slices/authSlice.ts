@@ -1,5 +1,13 @@
-import { createSlice, createAsyncThunk, type PayloadAction } from "@reduxjs/toolkit";
+import {
+  createSlice,
+  createAsyncThunk,
+  type PayloadAction,
+} from "@reduxjs/toolkit";
 import api from "../../api/axios";
+
+/* ======================
+   TYPES
+====================== */
 
 export interface User {
   id: string;
@@ -8,91 +16,107 @@ export interface User {
   role: "user" | "admin";
 }
 
+type AsyncStatus = "idle" | "loading" | "succeeded" | "failed";
+
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
-  loading: boolean;
+  status: AsyncStatus;
   error: string | null;
-  otpSent: boolean; // Track if OTP was sent
-  pjNumber: string; // Persist PJ number for OTP verification
+  otpSent: boolean;
+  pjNumber: string;
 }
+
+/* ======================
+   HELPERS
+====================== */
+
+const getErrorMessage = (err: unknown, fallback: string) => {
+  if (typeof err === "object" && err && "response" in err) {
+    // axios error
+    // @ts-expect-error – axios shape
+    return err.response?.data?.message ?? fallback;
+  }
+  return fallback;
+};
+
+/* ======================
+   INITIAL STATE
+====================== */
 
 const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
-  loading: false,
+  status: "idle",
   error: null,
   otpSent: false,
-  pjNumber: "",
+  pjNumber: sessionStorage.getItem("pjNumber") ?? "",
 };
 
-// ==========================
-// LOGIN (Send OTP)
-// ==========================
+/* ======================
+   THUNKS
+====================== */
+
+// Send OTP
 export const login = createAsyncThunk<
-  void, // login itself doesn’t return user yet
-  { pjNumber: string; password: string },
+  void,
+  { pjNumber: string; password?: string },
   { rejectValue: string }
 >("auth/login", async (credentials, { rejectWithValue }) => {
   try {
     const res = await api.post("/auth/login", credentials);
-    if (res.data?.status === "success") {
-      return; // OTP sent successfully
-    }
+    if (res.data?.status === "success") return;
     return rejectWithValue(res.data?.message ?? "Failed to send OTP");
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message ?? "Login failed");
+  } catch (err) {
+    return rejectWithValue(getErrorMessage(err, "Login failed"));
   }
 });
 
-// ==========================
-// VERIFY OTP
-// ==========================
+// Verify OTP
 export const verifyOtp = createAsyncThunk<
-  User, // OTP verification returns the user
+  User,
   { pjNumber: string; otp: string },
   { rejectValue: string }
->("auth/verifyOtp", async (data, { rejectWithValue }) => {
+>("auth/verifyOtp", async (payload, { rejectWithValue }) => {
   try {
-    const res = await api.post("/auth/verify-otp", data);
-    if (res.data?.status === "success" && res.data?.data?.user) {
-      return res.data.data.user;
-    }
-    return rejectWithValue(res.data?.message ?? "OTP verification failed");
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message ?? "OTP verification failed");
+    const res = await api.post("/auth/verify-otp", payload);
+    const user = res.data?.data?.user;
+    if (!user) return rejectWithValue("Invalid OTP");
+    return user;
+  } catch (err) {
+    return rejectWithValue(getErrorMessage(err, "OTP verification failed"));
   }
 });
 
-// ==========================
-// LOGOUT
-// ==========================
+// Logout
 export const logout = createAsyncThunk("auth/logout", async () => {
   try {
     await api.post("/auth/logout");
-  } catch (err) {
-    /* silent fail */
+  } finally {
+    sessionStorage.removeItem("pjNumber");
   }
 });
 
-// ==========================
-// REFRESH SESSION
-// ==========================
-export const refreshSession = createAsyncThunk<User, void, { rejectValue: string }>(
-  "auth/refresh",
-  async (_, { rejectWithValue }) => {
-    try {
-      const res = await api.post("/auth/refresh");
-      return res.data.data?.user;
-    } catch (err) {
-      return rejectWithValue("Session expired");
-    }
+// Refresh session
+export const refreshSession = createAsyncThunk<
+  User,
+  void,
+  { rejectValue: string }
+>("auth/refresh", async (_, { rejectWithValue }) => {
+  try {
+    const res = await api.post("/auth/refresh");
+    const user = res.data?.data?.user;
+    if (!user) return rejectWithValue("Session expired");
+    return user;
+  } catch {
+    return rejectWithValue("Session expired");
   }
-);
+});
 
-// ==========================
-// SLICE
-// ==========================
+/* ======================
+   SLICE
+====================== */
+
 const authSlice = createSlice({
   name: "auth",
   initialState,
@@ -102,63 +126,57 @@ const authSlice = createSlice({
     },
     resetOtpState(state) {
       state.otpSent = false;
-      state.pjNumber = ""; // clear PJ number on reset
+      state.pjNumber = "";
+      sessionStorage.removeItem("pjNumber");
     },
   },
   extraReducers: (builder) => {
     builder
-      // LOGIN (Send OTP)
-      .addCase(login.pending, (state) => {
-        state.loading = true;
+      // LOGIN
+      .addCase(login.pending, (state, action) => {
+        state.status = "loading";
         state.error = null;
         state.otpSent = false;
+        state.pjNumber = action.meta.arg.pjNumber;
+        sessionStorage.setItem("pjNumber", action.meta.arg.pjNumber);
       })
-      .addCase(login.fulfilled, (state, action) => {
-        state.loading = false;
-        state.otpSent = true; // OTP sent successfully
-        state.pjNumber = action.meta.arg.pjNumber; // persist PJ number
+      .addCase(login.fulfilled, (state) => {
+        state.status = "succeeded";
+        state.otpSent = true;
       })
       .addCase(login.rejected, (state, action) => {
-        state.loading = false;
+        state.status = "failed";
         state.error = action.payload ?? "Login failed";
       })
 
       // VERIFY OTP
       .addCase(verifyOtp.pending, (state) => {
-        state.loading = true;
+        state.status = "loading";
         state.error = null;
       })
       .addCase(verifyOtp.fulfilled, (state, action: PayloadAction<User>) => {
-        state.loading = false;
+        state.status = "succeeded";
         state.user = action.payload;
         state.isAuthenticated = true;
         state.otpSent = false;
-        state.pjNumber = ""; // clear PJ number after successful login
+        state.pjNumber = "";
+        sessionStorage.removeItem("pjNumber");
       })
       .addCase(verifyOtp.rejected, (state, action) => {
-        state.loading = false;
+        state.status = "failed";
         state.error = action.payload ?? "OTP verification failed";
       })
 
       // LOGOUT
-      .addCase(logout.fulfilled, (state) => {
-        state.user = null;
-        state.isAuthenticated = false;
-        state.loading = false;
-        state.otpSent = false;
-        state.pjNumber = "";
-      })
+      .addCase(logout.fulfilled, () => initialState)
 
-      // REFRESH SESSION
-      .addCase(refreshSession.fulfilled, (state, action: PayloadAction<User>) => {
-        state.loading = false;
+      // REFRESH
+      .addCase(refreshSession.fulfilled, (state, action) => {
         state.user = action.payload;
         state.isAuthenticated = true;
+        state.status = "succeeded";
       })
-      .addCase(refreshSession.rejected, (state) => {
-        state.loading = false;
-        state.isAuthenticated = false;
-      });
+      .addCase(refreshSession.rejected, () => initialState);
   },
 });
 

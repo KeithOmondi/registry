@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { toast, Toaster } from "react-hot-toast";
@@ -8,196 +8,156 @@ import { login, verifyOtp } from "../../store/slices/authSlice";
 export const Login: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const hasRedirected = useRef(false);
 
   const {
     user,
     isAuthenticated,
-    loading,
+    status,
     otpSent,
-    pjNumber: storedPJ,
+    pjNumber,
   } = useSelector((state: RootState) => state.auth);
 
-  const [pjNumber, setPjNumber] = useState(storedPJ || "");
+  const [localPJ, setLocalPJ] = useState(pjNumber);
   const [otp, setOtp] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
-  const hasRedirected = useRef(false);
 
-  // Redirect after successful login
+  const loading = status === "loading";
+
+  /* ======================
+     REDIRECT
+  ====================== */
   useEffect(() => {
     if (isAuthenticated && user && !hasRedirected.current) {
       hasRedirected.current = true;
-      const targetPath = user.role === "admin" ? "/admin" : "/dashboard";
-      navigate(targetPath, { replace: true });
+      navigate(user.role === "admin" ? "/admin" : "/dashboard", {
+        replace: true,
+      });
     }
   }, [isAuthenticated, user, navigate]);
 
-  // OTP resend countdown
+  /* ======================
+     OTP TIMER
+  ====================== */
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    if (resendTimer > 0) {
-      timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
-    }
-    return () => clearTimeout(timer);
+    if (!resendTimer) return;
+    const id = setInterval(() => {
+      setResendTimer((t) => Math.max(t - 1, 0));
+    }, 1000);
+    return () => clearInterval(id);
   }, [resendTimer]);
 
-  // Step 1: Send OTP
-  const handleLogin = async (e: React.FormEvent) => {
+  /* ======================
+     HANDLERS
+  ====================== */
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    const value = localPJ.trim();
 
-    const trimmedPJ = pjNumber.trim();
-    if (!trimmedPJ) {
-      toast.error("Please enter your PJ number");
+    if (!value) {
+      toast.error("PJ number is required");
       return;
     }
 
     try {
-      await dispatch(login({ pjNumber: trimmedPJ, password: "" })).unwrap();
-      toast.success("OTP sent to your registered email");
-      setResendTimer(60);
+      await dispatch(login({ pjNumber: value })).unwrap();
+      toast.success("OTP sent");
       setOtp("");
-    } catch (err: any) {
-      toast.error(typeof err === "string" ? err : "Failed to send OTP");
+      setResendTimer(60);
+    } catch (err) {
+      toast.error(String(err));
     }
   };
 
-  // Step 2: Verify OTP
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    const value = otp.trim();
 
-    const trimmedOtp = otp.trim();
-    if (!trimmedOtp) {
-      toast.error("Please enter the OTP");
+    if (!value) {
+      toast.error("OTP is required");
       return;
     }
 
     try {
-      const userData = await dispatch(
-        verifyOtp({ pjNumber: storedPJ || pjNumber, otp: trimmedOtp }),
+      const user = await dispatch(
+        verifyOtp({ pjNumber, otp: value }),
       ).unwrap();
-      toast.success(`Welcome back, ${userData.firstName}`);
-    } catch (err: any) {
-      toast.error(typeof err === "string" ? err : "OTP verification failed");
+      toast.success(`Welcome back, ${user.firstName}`);
+    } catch (err) {
+      toast.error(String(err));
     }
   };
 
-  // Resend OTP
   const handleResendOtp = async () => {
-    const trimmedPJ = storedPJ || pjNumber;
-    if (!trimmedPJ) return;
-
+    if (!pjNumber || loading || resendTimer) return;
     try {
-      await dispatch(login({ pjNumber: trimmedPJ, password: "" })).unwrap();
-      toast.success("OTP resent to your registered email");
+      await dispatch(login({ pjNumber })).unwrap();
+      toast.success("OTP resent");
       setResendTimer(60);
-    } catch (err: any) {
-      toast.error(typeof err === "string" ? err : "Failed to resend OTP");
+    } catch (err) {
+      toast.error(String(err));
     }
   };
 
+  /* ======================
+     RENDER
+  ====================== */
   return (
     <>
       <Toaster position="top-right" />
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4 relative overflow-hidden">
-        <img
-          src="https://judiciary.go.ke/wp-content/uploads/2023/05/logo1-Copy-2.png"
-          alt="Judiciary Watermark"
-          className="pointer-events-none absolute inset-0 m-auto w-[70%] max-w-xl opacity-[0.04] grayscale select-none"
-        />
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
+          <h1 className="text-2xl font-bold mb-2">Sign In</h1>
+          <p className="text-sm text-gray-500 mb-8">
+            Access using your PJ number
+          </p>
 
-        <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 bg-white shadow-2xl rounded-2xl overflow-hidden relative z-10">
-          {/* Branding side */}
-          <div className="hidden md:flex flex-col items-center justify-center bg-[#1a3a32] text-white p-10 relative">
-            <div className="text-center space-y-6 z-10">
-              <h2 className="text-2xl font-bold tracking-wide uppercase">
-                Office of the Registrar <br />
-                <span className="text-[#c2a336]">High Court</span>
-              </h2>
-              <div className="h-1 w-20 bg-[#c2a336] mx-auto rounded-full"></div>
-              <p className="text-emerald-100/70 text-sm max-w-md mx-auto leading-relaxed">
-                Urithi Portal
-              </p>
-            </div>
-            <img
-              src="https://judiciary.go.ke/wp-content/uploads/2023/05/logo1-Copy-2.png"
-              className="w-1/2 mt-12 opacity-90 drop-shadow-2xl"
-              alt="Logo"
-            />
-            <div className="absolute bottom-6 text-[10px] text-emerald-100/40 tracking-widest uppercase">
-              © {new Date().getFullYear()} Judiciary of Kenya
-            </div>
-          </div>
+          {!otpSent ? (
+            <form onSubmit={handleSendOtp} className="space-y-6">
+              <input
+                value={localPJ}
+                onChange={(e) => setLocalPJ(e.target.value)}
+                placeholder="PJ Number"
+                className="w-full border rounded-xl px-4 py-3"
+                autoComplete="username"
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#1a3a32] text-white py-3 rounded-xl font-semibold disabled:opacity-70"
+              >
+                {loading ? "Sending OTP…" : "Send OTP"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyOtp} className="space-y-6">
+              <input
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                placeholder="Enter OTP"
+                className="w-full border rounded-xl px-4 py-3 tracking-widest"
+                inputMode="numeric"
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#1a3a32] text-white py-3 rounded-xl font-semibold disabled:opacity-70"
+              >
+                {loading ? "Verifying…" : "Verify OTP"}
+              </button>
 
-          {/* Form side */}
-          <div className="p-8 md:p-16 flex flex-col justify-center bg-white">
-            <div className="mb-10 text-center md:text-left">
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">Sign In</h1>
-              <p className="text-gray-500 text-sm">
-                Access using your PJ number.
-              </p>
-            </div>
-
-            {!otpSent ? (
-              // Step 1: PJ Number
-              <form onSubmit={handleLogin} className="space-y-6">
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-400 mb-1 ml-1">
-                    PJ Number
-                  </label>
-                  <input
-                    type="text"
-                    value={pjNumber}
-                    onChange={(e) => setPjNumber(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#c2a336] focus:outline-none bg-gray-50"
-                    required
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-[#1a3a32] text-white py-4 rounded-xl font-bold hover:bg-[#142d26] transition-all disabled:opacity-70"
-                >
-                  {loading ? "Sending OTP..." : "Send OTP"}
-                </button>
-              </form>
-            ) : (
-              // Step 2: OTP input
-              <form onSubmit={handleVerifyOtp} className="space-y-6">
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-gray-400 mb-1 ml-1">
-                    Enter OTP
-                  </label>
-                  <input
-                    type="text"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#c2a336] focus:outline-none bg-gray-50"
-                    required
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-[#1a3a32] text-white py-4 rounded-xl font-bold hover:bg-[#142d26] transition-all disabled:opacity-70"
-                >
-                  {loading ? "Verifying OTP..." : "Verify OTP"}
-                </button>
-
-                {/* Resend OTP */}
-                <button
-                  type="button"
-                  disabled={resendTimer > 0 || loading}
-                  onClick={handleResendOtp}
-                  className="mt-2 w-full bg-gray-300 text-gray-800 py-2 rounded-xl font-bold hover:bg-gray-400 transition-all disabled:opacity-50"
-                >
-                  {resendTimer > 0
-                    ? `Resend OTP in ${resendTimer}s`
-                    : "Resend OTP"}
-                </button>
-              </form>
-            )}
-          </div>
+              <button
+                type="button"
+                onClick={handleResendOtp}
+                disabled={loading || resendTimer > 0}
+                className="w-full text-sm text-gray-600"
+              >
+                {resendTimer
+                  ? `Resend OTP in ${resendTimer}s`
+                  : "Resend OTP"}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </>
