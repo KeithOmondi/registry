@@ -13,29 +13,29 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   adminOnly = false,
 }) => {
   const location = useLocation();
-  // We now use isAuthenticated and user from the updated auth slice
-  const { user, isAuthenticated, loading } = useSelector((state: RootState) => state.auth);
+  const { user, isAuthenticated, loading, otpSent } = useSelector(
+    (state: RootState) => state.auth
+  );
 
-  // 1. If we are still checking cookies, show nothing (or a small spinner)
-  // This acts as a secondary safety net to the check in App.tsx
-  if (loading) {
-    return null; 
+  // 1. If still checking session → show nothing (or a spinner)
+  if (loading) return null;
+
+  // 2. Allow OTP page if OTP was sent but user is not yet authenticated
+  // Assume OTP page is at /verify-otp
+  if (otpSent && location.pathname === "/verify-otp") {
+    return <>{children}</>;
   }
 
-  // 2. Not logged in → redirect to login
+  // 3. Not logged in → redirect to login
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // 3. Role-Based Access Control (RBAC)
-  
-  // User trying to access an Admin-only route
+  // 4. Role-Based Access Control (RBAC)
   if (adminOnly && user.role !== "admin") {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Admin trying to access a standard User route (Optional: depends on your UX preference)
-  // If you want Admins to be restricted ONLY to the admin panel:
   if (!adminOnly && user.role === "admin") {
     return <Navigate to="/admin" replace />;
   }

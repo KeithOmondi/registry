@@ -1,6 +1,6 @@
 // store/slices/reportsSlice.ts
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
+import api from "../../api/axios";
 
 interface ReportState {
   summary: any;
@@ -20,7 +20,7 @@ export const fetchAnalytics = createAsyncThunk(
   "reports/fetchAnalytics",
   async (courtId: string = "all", { rejectWithValue }) => {
     try {
-      const response = await axios.get(`/reports/analytics?courtId=${courtId}`);
+      const response = await api.get(`/reports/analytics?courtId=${courtId}`);
       return response.data.data;
     } catch (err: any) {
       return rejectWithValue(err.response.data.message);
