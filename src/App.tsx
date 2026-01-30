@@ -1,10 +1,13 @@
 import { useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { Toaster } from "react-hot-toast";
+
+// Ensure these types are correctly exported from your store.ts
 import type { RootState, AppDispatch } from "./store/store";
 
 import { refreshSession } from "./store/slices/authSlice";
+import { fetchMyProfile } from "./store/slices/userSlice"; 
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 import { UserLayout } from "./components/user/UserLayout";
 import { AdminLayout } from "./components/admin/AdminLayout";
@@ -24,13 +27,45 @@ import { Login } from "./pages/auth/Login";
 
 function App() {
   const dispatch = useDispatch<AppDispatch>();
-  const { status } = useSelector((state: RootState) => state.auth);
+  
+  // FIX: Explicitly typing the state in useSelector fixes the 'unknown' error
+  const { status, isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const { loading: userLoading } = useSelector((state: RootState) => state.user);
 
+  /* =====================================
+      1. REFRESH SESSION ON MOUNT
+  ===================================== */
   useEffect(() => {
     dispatch(refreshSession());
   }, [dispatch]);
 
-  if (status === "loading") return <div>Loading...</div>;
+  /* =====================================
+      2. HYDRATE USER PROFILE
+  ===================================== */
+  useEffect(() => {
+    // If the session is valid but we don't have the user profile yet, fetch it
+    if (isAuthenticated) {
+      dispatch(fetchMyProfile());
+    }
+  }, [isAuthenticated, dispatch]);
+
+  /* =====================================
+      3. GLOBAL LOADING STATE
+  ===================================== */
+  // We stay in loading state if auth is checking OR if we are logged in but fetching the name
+  if (status === "loading" || (isAuthenticated && userLoading)) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#F9F9F7]">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-slate-200 border-t-[#004832] rounded-full animate-spin"></div>
+          <div className="absolute inset-0 flex items-center justify-center text-xl">⚖️</div>
+        </div>
+        <p className="mt-4 text-[#004832] font-black text-[10px] uppercase tracking-[0.3em] animate-pulse">
+          Authenticating...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <Router>
@@ -142,7 +177,7 @@ function App() {
           }
         />
 
-        <Route path="*" element={<Login />} />
+        <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} />
       </Routes>
     </Router>
   );

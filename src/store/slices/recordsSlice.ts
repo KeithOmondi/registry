@@ -15,6 +15,13 @@ export interface Court {
   level?: string;
 }
 
+// Added to support the Audit Trail UI
+export interface Auditor {
+  _id: string;
+  firstName: string;
+  lastName: string;
+}
+
 export type Form60Compliance = "Approved" | "Rejected";
 export type StatusAtGP = "Pending" | "Published";
 
@@ -35,6 +42,10 @@ export interface Record {
   volumeNo?: string;
   datePublished?: string | null;
   kpiAlertSent: boolean;
+  // --- NEW AUDIT FIELDS ---
+  updatedBy?: Auditor | null;
+  lastEditAction?: string;
+  // ------------------------
   createdAt: string;
   updatedAt: string;
 }
@@ -59,17 +70,16 @@ export interface UpdateRecordPayload {
   data: Partial<CreateRecordPayload>;
 }
 
-/**
- * 🔁 Updated to match backend req.body keys exactly: { ids, date }
- */
 export interface BulkForwardDatePayload {
-  ids: string[]; 
+  ids: string[];
   date: string;
 }
 
+// Updated to receive the fresh records back from the server
 export interface BulkUpdateResponse {
   success: boolean;
   modifiedCount: number;
+  records: Record[];
 }
 
 export interface RecordStats {
@@ -93,7 +103,7 @@ export const fetchRecords = createAsyncThunk<Record[]>(
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }
-  }
+  },
 );
 
 export const fetchRecordById = createAsyncThunk<Record, string>(
@@ -101,11 +111,11 @@ export const fetchRecordById = createAsyncThunk<Record, string>(
   async (id, { rejectWithValue }) => {
     try {
       const res = await api.get(`/records/get/${id}`);
-      return res.data; // Adjusted based on standard controller return
+      return res.data;
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }
-  }
+  },
 );
 
 export const createRecord = createAsyncThunk<Record, CreateRecordPayload>(
@@ -117,7 +127,7 @@ export const createRecord = createAsyncThunk<Record, CreateRecordPayload>(
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }
-  }
+  },
 );
 
 export const updateRecord = createAsyncThunk<Record, UpdateRecordPayload>(
@@ -129,7 +139,7 @@ export const updateRecord = createAsyncThunk<Record, UpdateRecordPayload>(
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }
-  }
+  },
 );
 
 export const deleteRecord = createAsyncThunk<string, string>(
@@ -141,7 +151,7 @@ export const deleteRecord = createAsyncThunk<string, string>(
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }
-  }
+  },
 );
 
 export const fetchRecordStats = createAsyncThunk<RecordStats>(
@@ -153,31 +163,23 @@ export const fetchRecordStats = createAsyncThunk<RecordStats>(
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }
-  }
+  },
 );
 
-/**
- * 🔁 BULK UPDATE DATE FORWARDED TO GP
- * Note: Backend returns { success, modifiedCount }. 
- * After this succeeds, you should dispatch fetchRecords() to refresh the list.
- */
 export const updateMultipleRecordsDateForwarded = createAsyncThunk<
   BulkUpdateResponse,
   BulkForwardDatePayload
->(
-  "records/bulkUpdateDateForwarded",
-  async (payload, { rejectWithValue }) => {
-    try {
-      const res = await api.put(
-        "/records/update-multiple-date-forwarded",
-        payload // payload is { ids, date }
-      );
-      return res.data;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || err.message);
-    }
+>("records/bulkUpdateDateForwarded", async (payload, { rejectWithValue }) => {
+  try {
+    const res = await api.put(
+      "/records/update-multiple-date-forwarded",
+      payload,
+    );
+    return res.data;
+  } catch (err: any) {
+    return rejectWithValue(err.response?.data?.message || err.message);
   }
-);
+});
 
 /* =======================
    SLICE
@@ -212,12 +214,8 @@ const recordSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      /* =====================================
-         1. SPECIFIC CASES (addCase) - MUST BE FIRST
-         ===================================== */
-      
       // FETCH ALL
-      .addCase(fetchRecords.fulfilled, (state, action: PayloadAction<Record[]>) => {
+      .addCase(fetchRecords.fulfilled, (state, action) => {
         state.loading = false;
         state.records = action.payload;
       })
@@ -234,15 +232,32 @@ const recordSlice = createSlice({
         state.records.unshift(action.payload);
       })
 
-      // UPDATE
+      // UPDATE (Single)
       .addCase(updateRecord.fulfilled, (state, action) => {
         state.loading = false;
-        const idx = state.records.findIndex((r) => r._id === action.payload._id);
+        const idx = state.records.findIndex(
+          (r) => r._id === action.payload._id,
+        );
         if (idx !== -1) state.records[idx] = action.payload;
         if (state.selectedRecord?._id === action.payload._id) {
           state.selectedRecord = action.payload;
         }
       })
+
+      // BULK UPDATE (Now intelligently updates the records array)
+      .addCase(
+        updateMultipleRecordsDateForwarded.fulfilled,
+        (state, action) => {
+          state.loading = false;
+          // Merge the updated records back into the state
+          action.payload.records.forEach((updatedRecord) => {
+            const idx = state.records.findIndex(
+              (r) => r._id === updatedRecord._id,
+            );
+            if (idx !== -1) state.records[idx] = updatedRecord;
+          });
+        },
+      )
 
       // DELETE
       .addCase(deleteRecord.fulfilled, (state, action) => {
@@ -256,27 +271,23 @@ const recordSlice = createSlice({
         state.stats = action.payload;
       })
 
-      // BULK UPDATE
-      .addCase(updateMultipleRecordsDateForwarded.fulfilled, (state) => {
-        state.loading = false;
-      })
-
       /* =====================================
-         2. MATCHERS (addMatcher) - MUST BE LAST
+         MATCHERS (PENDING/REJECTED)
          ===================================== */
       .addMatcher(
         (action): action is PayloadAction => action.type.endsWith("/pending"),
         (state: RecordsState) => {
           state.loading = true;
           state.error = null;
-        }
+        },
       )
       .addMatcher(
-        (action): action is PayloadAction<string> => action.type.endsWith("/rejected"),
+        (action): action is PayloadAction<string> =>
+          action.type.endsWith("/rejected"),
         (state: RecordsState, action) => {
           state.loading = false;
           state.error = action.payload || "An unexpected error occurred";
-        }
+        },
       );
   },
 });

@@ -37,7 +37,12 @@ const initialState: UserState = {
 export const fetchMyProfile = createAsyncThunk('user/fetchMyProfile', async (_, { rejectWithValue }) => {
   try {
     const response = await api.get("/user/me");
-    return response.data.data;
+    // Log this to your console to see exactly what the backend is sending!
+    console.log("Backend User Data:", response.data); 
+    
+    // If your backend nests data under a 'data' key, use response.data.data
+    // If it's direct, just use response.data
+    return response.data.data || response.data; 
   } catch (err: any) {
     return rejectWithValue(err.response?.data?.message || 'Failed to fetch profile');
   }

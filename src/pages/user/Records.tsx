@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  Info,
 } from "lucide-react";
 
 const RecordPage: React.FC = () => {
@@ -69,9 +70,9 @@ const RecordPage: React.FC = () => {
           date: bulkDate,
         }),
       ).unwrap();
-      toast.success("Batch updated");
+      toast.success("Batch updated successfully");
       setSelectedIds([]);
-      dispatch(fetchRecords());
+      // dispatch(fetchRecords()) is no longer needed as slice handles the state merge
     } catch (err: any) {
       toast.error(err);
     }
@@ -114,13 +115,13 @@ const RecordPage: React.FC = () => {
             <input
               type="text"
               placeholder="Search Deceased or Cause No..."
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-[#004832] outline-none"
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:border-[#004832] outline-none transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <select
-            className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none"
+            className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#004832] transition-all"
             value={courtFilter}
             onChange={(e) => setCourtFilter(e.target.value)}
           >
@@ -134,23 +135,26 @@ const RecordPage: React.FC = () => {
         </div>
 
         {selectedIds.length > 0 && (
-          <div className="flex items-center gap-3 bg-[#004832] text-white px-4 py-2 rounded-xl animate-in fade-in zoom-in">
+          <div className="flex items-center gap-3 bg-[#004832] text-white px-4 py-2 rounded-xl animate-in fade-in zoom-in duration-300">
             <span className="text-xs font-bold">
               {selectedIds.length} Selected
             </span>
             <input
               type="date"
-              className="text-slate-900 text-xs rounded px-2 py-1 outline-none"
+              className="text-slate-900 text-xs rounded px-2 py-1 outline-none border-none focus:ring-2 focus:ring-[#C8A239]"
               value={bulkDate}
               onChange={(e) => setBulkDate(e.target.value)}
             />
             <button
               onClick={handleBulkUpdate}
-              className="bg-[#C8A239] text-[10px] font-black uppercase px-3 py-1.5 rounded-lg"
+              className="bg-[#C8A239] hover:bg-[#b38f2f] text-[10px] font-black uppercase px-4 py-2 rounded-lg transition-colors"
             >
               Forward to GP
             </button>
-            <button onClick={() => setSelectedIds([])}>
+            <button
+              onClick={() => setSelectedIds([])}
+              className="hover:text-red-400 transition-colors"
+            >
               <XCircle size={18} />
             </button>
           </div>
@@ -163,9 +167,10 @@ const RecordPage: React.FC = () => {
           <table className="w-full text-left text-sm border-collapse min-w-[1600px]">
             <thead>
               <tr className="bg-[#004832] text-white uppercase text-[10px] tracking-widest font-black">
-                <th className="p-4 text-center">
+                <th className="p-4 text-center w-12">
                   <input
                     type="checkbox"
+                    className="accent-[#C8A239]"
                     onChange={(e) =>
                       e.target.checked
                         ? setSelectedIds(currentRecords.map((r) => r._id))
@@ -187,10 +192,14 @@ const RecordPage: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {currentRecords.map((r) => (
-                <tr key={r._id} className="hover:bg-slate-50 transition-colors">
+                <tr
+                  key={r._id}
+                  className="hover:bg-slate-50 transition-colors group/row"
+                >
                   <td className="p-4 text-center">
                     <input
                       type="checkbox"
+                      className="accent-[#004832]"
                       checked={selectedIds.includes(r._id)}
                       onChange={() =>
                         setSelectedIds((prev) =>
@@ -208,22 +217,26 @@ const RecordPage: React.FC = () => {
                   <td className="p-4 font-black uppercase text-[#1a3a32]">
                     {r.nameOfDeceased}
                   </td>
-                  <td className="p-4 text-xs text-slate-500">
+                  <td className="p-4 text-xs text-slate-500 font-medium">
                     {new Date(r.dateReceived).toLocaleDateString("en-KE")}
                   </td>
-                  <td className="p-4 text-xs text-slate-500">
+                  <td className="p-4 text-xs text-slate-500 font-medium">
                     {r.dateOfReceipt
                       ? new Date(r.dateOfReceipt).toLocaleDateString("en-KE")
                       : "—"}
                   </td>
                   <td className="p-4 text-center">
                     <span
-                      className={`px-2 py-1 rounded-md font-bold text-[10px] ${Number(r.receivingLeadTime) > 5 ? "bg-red-100 text-red-600" : "bg-slate-100 text-slate-600"}`}
+                      className={`px-2 py-1 rounded-md font-bold text-[10px] ${
+                        Number(r.receivingLeadTime) > 5
+                          ? "bg-red-100 text-red-600"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
                     >
                       {r.receivingLeadTime ?? 0} Days
                     </span>
                   </td>
-                  <td className="p-4 text-xs text-slate-500">
+                  <td className="p-4 text-xs text-slate-500 font-medium">
                     {r.dateForwardedToGP ? (
                       new Date(r.dateForwardedToGP).toLocaleDateString("en-KE")
                     ) : (
@@ -240,7 +253,11 @@ const RecordPage: React.FC = () => {
                   <td className="p-4">
                     <div className="flex flex-col gap-1">
                       <span
-                        className={`flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-full w-fit ${r.form60Compliance === "Approved" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}
+                        className={`flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-full w-fit ${
+                          r.form60Compliance === "Approved"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
                       >
                         {r.form60Compliance === "Approved" ? (
                           <CheckCircle2 size={12} />
@@ -258,15 +275,82 @@ const RecordPage: React.FC = () => {
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
+                      {/* Standard Edit Action */}
                       <button
                         onClick={() => {
                           setSelectedRecord(r);
                           setEditMode(true);
                         }}
                         className="p-2 hover:bg-[#004832]/10 text-[#004832] rounded-lg transition-colors"
+                        title="Edit Record"
                       >
                         <Edit3 size={16} />
                       </button>
+
+                      {/* AUDIT POPUP TRIGGER */}
+                      {r.updatedBy && (
+                        <div className="relative group/audit">
+                          <button className="p-2 hover:bg-[#C8A239]/10 text-slate-400 hover:text-[#C8A239] rounded-lg transition-colors cursor-help">
+                            <Info size={16} />
+                          </button>
+
+                          {/* THE AUDIT TOOLTIP */}
+                          <div className="absolute bottom-full right-0 mb-3 hidden group-hover/audit:block w-72 bg-[#1a1a1a] text-white p-4 rounded-2xl shadow-2xl z-[150] border border-white/10 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2">
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                                <h4 className="text-[10px] font-black text-[#C8A239] uppercase tracking-widest">
+                                  System Audit Log
+                                </h4>
+                                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              </div>
+
+                              <div className="flex justify-between items-start gap-4">
+                                <span className="text-slate-400 text-[9px] uppercase font-bold">
+                                  Officer
+                                </span>
+                                <span className="text-[11px] font-semibold text-right">
+                                  {r.updatedBy.firstName} {r.updatedBy.lastName}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2 pt-1">
+                                <div>
+                                  <span className="text-slate-400 text-[9px] uppercase font-bold block">
+                                    Date
+                                  </span>
+                                  <span className="text-[10px]">
+                                    {new Date(r.updatedAt).toLocaleDateString(
+                                      "en-KE",
+                                    )}
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-slate-400 text-[9px] uppercase font-bold block">
+                                    Time
+                                  </span>
+                                  <span className="text-[10px]">
+                                    {new Date(r.updatedAt).toLocaleTimeString(
+                                      "en-KE",
+                                      { hour: "2-digit", minute: "2-digit" },
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="mt-2 pt-2 border-t border-white/5 bg-white/5 p-2 rounded-lg">
+                                <span className="text-[8px] text-[#C8A239] uppercase font-black block mb-1">
+                                  Last Activity
+                                </span>
+                                <p className="text-[10px] text-slate-200 italic leading-tight">
+                                  {r.lastEditAction ||
+                                    "Manual database adjustment"}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="absolute top-full right-4 border-[6px] border-transparent border-t-[#1a1a1a]"></div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -284,14 +368,14 @@ const RecordPage: React.FC = () => {
             <button
               disabled={currentPage === 1}
               onClick={() => setCurrentPage((p) => p - 1)}
-              className="p-2 bg-white border rounded-lg disabled:opacity-30"
+              className="p-2 bg-white border border-slate-200 rounded-lg disabled:opacity-30 hover:bg-slate-50 transition-colors"
             >
               <ChevronLeft size={18} />
             </button>
             <button
               disabled={currentPage === totalPages}
               onClick={() => setCurrentPage((p) => p + 1)}
-              className="p-2 bg-white border rounded-lg disabled:opacity-30"
+              className="p-2 bg-white border border-slate-200 rounded-lg disabled:opacity-30 hover:bg-slate-50 transition-colors"
             >
               <ChevronRight size={18} />
             </button>
@@ -310,7 +394,7 @@ const RecordPage: React.FC = () => {
               </h3>
               <button
                 onClick={() => setEditMode(false)}
-                className="text-slate-400 hover:text-red-500 transition-colors"
+                className="text-slate-400 hover:text-red-500 transition-all p-1"
               >
                 <XCircle size={24} />
               </button>
@@ -320,6 +404,7 @@ const RecordPage: React.FC = () => {
                 record={selectedRecord}
                 onClose={() => {
                   setEditMode(false);
+                  // Not strictly needed with Redux merge, but kept for absolute data sync
                   dispatch(fetchRecords());
                 }}
               />
