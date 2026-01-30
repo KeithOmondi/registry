@@ -14,55 +14,21 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
   const location = useLocation();
   const { user, isAuthenticated, status, otpSent } = useSelector(
-    (state: RootState) => state.auth
+    (state: RootState) => state.auth,
   );
 
-  /* ======================
-     1. Session still resolving
-  ====================== */
-  if (status === "loading") {
-    // You can replace this with a spinner/skeleton if you want
-    return null;
-  }
+  if (status === "loading") return null; // or spinner
 
-  /* ======================
-     2. Allow OTP verification route
-     (user not authenticated yet)
-  ====================== */
-  if (
-    otpSent &&
-    !isAuthenticated &&
-    location.pathname === "/verify-otp"
-  ) {
+  if (otpSent && !isAuthenticated && location.pathname === "/verify-otp")
     return <>{children}</>;
-  }
 
-  /* ======================
-     3. Not authenticated → login
-  ====================== */
-  if (!isAuthenticated || !user) {
-    return (
-      <Navigate
-        to="/login"
-        state={{ from: location }}
-        replace
-      />
-    );
-  }
+  if (!isAuthenticated || !user)
+    return <Navigate to="/login" state={{ from: location }} replace />;
 
-  /* ======================
-     4. RBAC (Admin only)
-  ====================== */
-  if (adminOnly && user.role !== "admin") {
+  if (adminOnly && user.role !== "admin")
     return <Navigate to="/dashboard" replace />;
-  }
-
-  /* ======================
-     5. Prevent admin accessing user-only routes
-  ====================== */
-  if (!adminOnly && user.role === "admin") {
+  if (!adminOnly && user.role === "admin")
     return <Navigate to="/admin" replace />;
-  }
 
   return <>{children}</>;
 };

@@ -1,39 +1,36 @@
 import { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Toaster } from "react-hot-toast";
+import type { RootState, AppDispatch } from "./store/store";
 
-//import { AppDispatch, RootState } from "./store/store";
 import { refreshSession } from "./store/slices/authSlice";
-
-// Components & Routes
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 import { UserLayout } from "./components/user/UserLayout";
+import { AdminLayout } from "./components/admin/AdminLayout";
+
 import DashboardPage from "./pages/user/Dashboard";
 import RecordsPage from "./pages/user/Records";
 import CreateRecordPage from "./pages/user/CreateRecord";
 import ReportsPage from "./pages/user/Reports";
 import NotForwardedPage from "./pages/user/NotForwarded";
+import ScansPage from "./pages/user/Scans";
 
-// Admin
-import { AdminLayout } from "./components/admin/AdminLayout";
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
 import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { AdminRecordsPage } from "./pages/admin/AdminRecordsPage";
 import { AdminReportsPage } from "./pages/admin/AdminReportsPage";
 import { Login } from "./pages/auth/Login";
-import type { AppDispatch } from "./store/store";
-import ScansPage from "./pages/user/Scans";
 
 function App() {
   const dispatch = useDispatch<AppDispatch>();
+  const { status } = useSelector((state: RootState) => state.auth);
 
   useEffect(() => {
-    // 1. On mount, check if HttpOnly cookies are valid and get user profile
     dispatch(refreshSession());
   }, [dispatch]);
 
-  
+  if (status === "loading") return <div>Loading...</div>;
 
   return (
     <Router>
@@ -41,7 +38,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
 
-        {/* ========== USER ROUTES ========== */}
+        {/* USER ROUTES */}
         <Route
           path="/dashboard"
           element={
@@ -77,7 +74,7 @@ function App() {
           element={
             <ProtectedRoute>
               <UserLayout>
-                <ReportsPage/>
+                <ReportsPage />
               </UserLayout>
             </ProtectedRoute>
           }
@@ -87,7 +84,7 @@ function App() {
           element={
             <ProtectedRoute>
               <UserLayout>
-                <NotForwardedPage/>
+                <NotForwardedPage />
               </UserLayout>
             </ProtectedRoute>
           }
@@ -97,13 +94,13 @@ function App() {
           element={
             <ProtectedRoute>
               <UserLayout>
-                <ScansPage/>
+                <ScansPage />
               </UserLayout>
             </ProtectedRoute>
           }
         />
 
-        {/* ========== ADMIN ROUTES ========== */}
+        {/* ADMIN ROUTES */}
         <Route
           path="/admin"
           element={
@@ -144,8 +141,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-        
-        {/* Catch-all or Default Redirect could go here */}
+
         <Route path="*" element={<Login />} />
       </Routes>
     </Router>

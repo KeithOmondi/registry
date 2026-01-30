@@ -1,14 +1,9 @@
-import {
-  createSlice,
-  createAsyncThunk,
-  type PayloadAction,
-} from "@reduxjs/toolkit";
+import { createSlice, createAsyncThunk, type PayloadAction } from "@reduxjs/toolkit";
 import api from "../../api/axios";
 
 /* ======================
    TYPES
 ====================== */
-
 export interface User {
   id: string;
   firstName: string;
@@ -30,10 +25,8 @@ interface AuthState {
 /* ======================
    HELPERS
 ====================== */
-
 const getErrorMessage = (err: unknown, fallback: string) => {
   if (typeof err === "object" && err && "response" in err) {
-    // axios error
     // @ts-expect-error – axios shape
     return err.response?.data?.message ?? fallback;
   }
@@ -43,7 +36,6 @@ const getErrorMessage = (err: unknown, fallback: string) => {
 /* ======================
    INITIAL STATE
 ====================== */
-
 const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
@@ -56,7 +48,6 @@ const initialState: AuthState = {
 /* ======================
    THUNKS
 ====================== */
-
 // Send OTP
 export const login = createAsyncThunk<
   void,
@@ -98,25 +89,23 @@ export const logout = createAsyncThunk("auth/logout", async () => {
 });
 
 // Refresh session
-export const refreshSession = createAsyncThunk<
-  User,
-  void,
-  { rejectValue: string }
->("auth/refresh", async (_, { rejectWithValue }) => {
-  try {
-    const res = await api.post("/auth/refresh");
-    const user = res.data?.data?.user;
-    if (!user) return rejectWithValue("Session expired");
-    return user;
-  } catch {
-    return rejectWithValue("Session expired");
+export const refreshSession = createAsyncThunk<User, void, { rejectValue: string }>(
+  "auth/refresh",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await api.post("/auth/refresh");
+      const user = res.data?.data?.user;
+      if (!user) return rejectWithValue("Session expired");
+      return user;
+    } catch {
+      return rejectWithValue("Session expired");
+    }
   }
-});
+);
 
 /* ======================
    SLICE
 ====================== */
-
 const authSlice = createSlice({
   name: "auth",
   initialState,
@@ -171,12 +160,19 @@ const authSlice = createSlice({
       .addCase(logout.fulfilled, () => initialState)
 
       // REFRESH
-      .addCase(refreshSession.fulfilled, (state, action) => {
+      .addCase(refreshSession.pending, (state) => {
+        state.status = "loading";
+      })
+      .addCase(refreshSession.fulfilled, (state, action: PayloadAction<User>) => {
         state.user = action.payload;
         state.isAuthenticated = true;
         state.status = "succeeded";
       })
-      .addCase(refreshSession.rejected, () => initialState);
+      .addCase(refreshSession.rejected, (state) => {
+        state.status = "failed";
+        state.isAuthenticated = false;
+        state.user = null;
+      });
   },
 });
 
