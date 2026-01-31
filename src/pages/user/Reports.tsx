@@ -1,7 +1,17 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useReactToPrint } from "react-to-print";
-import  { Toaster } from "react-hot-toast";
+import { Toaster } from "react-hot-toast";
+import { 
+  FileText, 
+  Filter, 
+  Printer, 
+  RotateCcw, 
+  ShieldCheck, 
+  ShieldAlert, 
+  Clock, 
+  LayoutDashboard 
+} from "lucide-react";
 
 import type { AppDispatch, RootState } from "../../store/store";
 import { fetchRecords } from "../../store/slices/recordsSlice";
@@ -14,191 +24,207 @@ const ReportsPage: React.FC = () => {
   const { records = [] } = useSelector((state: RootState) => state.records);
   const { courts = [] } = useSelector((state: RootState) => state.courts);
 
-  // Filters
   const [courtFilter, setCourtFilter] = useState("all");
-  const [complianceFilter, setComplianceFilter] = useState("all"); // Approved | Rejected
-  const [gpStatusFilter, setGpStatusFilter] = useState("all"); // Not Forwarded
+  const [complianceFilter, setComplianceFilter] = useState("all");
+  const [gpStatusFilter, setGpStatusFilter] = useState("all");
   const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
 
   useEffect(() => {
     dispatch(fetchCourts());
     dispatch(fetchRecords());
   }, [dispatch]);
 
-  /* ========================
-      STRICT FILTER LOGIC
-  ======================== */
   const filteredRecords = useMemo(() => {
     return records.filter((r) => {
-      // 1. Station Filter
       const matchesCourt = courtFilter === "all" || r.courtStation?._id === courtFilter;
-
-      // 2. Compliance Filter (Approved / Rejected)
       const matchesCompliance = complianceFilter === "all" || r.form60Compliance === complianceFilter;
-
-      // 3. GP Forwarding Status (Strictly checks if DateForwarded exists)
+      // Fixed: logic to handle gpStatusFilter
       const matchesGP = gpStatusFilter === "all" || 
-        (gpStatusFilter === "Not Forwarded" && !r.dateForwardedToGP);
-
-      // 4. Date Range
+                        (gpStatusFilter === "Not Forwarded" && !r.dateForwardedToGP) ||
+                        (gpStatusFilter === "Forwarded" && r.dateForwardedToGP);
+      
       const recordDate = r.dateReceived ? new Date(r.dateReceived) : null;
       const start = startDate ? new Date(startDate) : null;
-      const end = endDate ? new Date(endDate) : null;
-      const matchesDate = (!start || (recordDate && recordDate >= start)) &&
-                          (!end || (recordDate && recordDate <= end));
-
-      return matchesCourt && matchesCompliance && matchesGP && matchesDate;
+      return (!start || (recordDate && recordDate >= start)) && matchesCourt && matchesCompliance && matchesGP;
     }).sort((a, b) => (b.no || 0) - (a.no || 0));
-  }, [records, courtFilter, complianceFilter, gpStatusFilter, startDate, endDate]);
+  }, [records, courtFilter, complianceFilter, gpStatusFilter, startDate]);
+
+  const stats = useMemo(() => ({
+    total: filteredRecords.length,
+    approved: filteredRecords.filter(r => r.form60Compliance === 'Approved').length,
+    rejected: filteredRecords.filter(r => r.form60Compliance === 'Rejected').length,
+    pendingGP: filteredRecords.filter(r => !r.dateForwardedToGP).length
+  }), [filteredRecords]);
 
   const handlePrint = useReactToPrint({
     contentRef: reportRef,
-    documentTitle: `ORHC_Report_${complianceFilter}_${gpStatusFilter}`,
+    documentTitle: `ORHC_Report_${new Date().toISOString().split('T')[0]}`,
   });
 
   return (
-    <div className="p-4 md:p-8 bg-[#f8fafc] min-h-screen">
+    <div className="p-6 md:p-10 bg-[#F4F7F6] min-h-screen font-sans text-slate-900">
       <Toaster position="top-right" />
 
-      {/* HEADER SECTION */}
-      <div className="max-w-[1600px] mx-auto mb-8 flex flex-col md:flex-row justify-between items-center no-print">
-        <div>
-          <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Report Generator</h2>
-          <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Generate filtered station records</p>
-        </div>
+      {/* WEB UI VIEW */}
+      <div className="max-w-[1400px] mx-auto no-print">
         
-        <button
-          onClick={() => handlePrint()}
-          disabled={filteredRecords.length === 0}
-          className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white px-10 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl transition-all active:scale-95"
-        >
-          Download PDF ({filteredRecords.length} Results)
-        </button>
-      </div>
-
-      {/* FILTER BAR */}
-      <div className="max-w-[1600px] mx-auto grid grid-cols-1 md:grid-cols-5 gap-4 mb-8 no-print bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
-        
-        {/* 1. Court Selection */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Select Station</label>
-          <select
-            value={courtFilter}
-            onChange={(e) => setCourtFilter(e.target.value)}
-            className="bg-slate-50 border-none rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none ring-2 ring-transparent focus:ring-emerald-500/20"
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-emerald-600 rounded-lg text-white">
+                <LayoutDashboard size={24} />
+              </div>
+              <h2 className="text-3xl font-black tracking-tight uppercase">Report Center</h2>
+            </div>
+            <p className="text-slate-500 text-xs font-bold uppercase tracking-[0.2em] ml-1">
+              Probate Registry Analytics & Official Documentation
+            </p>
+          </div>
+          
+          <button
+            onClick={() => handlePrint()}
+            disabled={filteredRecords.length === 0}
+            className="group flex items-center gap-3 bg-slate-900 hover:bg-emerald-700 disabled:bg-slate-300 text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-2xl transition-all duration-300"
           >
-            <option value="all">All Courts</option>
+            <Printer size={18} className="group-hover:scale-110 transition-transform" />
+            Generate PDF Document
+          </button>
+        </div>
+
+        {/* STATS STRIP */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          {[
+            { label: "Total Filtered", val: stats.total, icon: <FileText />, color: "text-blue-600", bg: "bg-blue-50" },
+            { label: "Compliance Approved", val: stats.approved, icon: <ShieldCheck />, color: "text-emerald-600", bg: "bg-emerald-50" },
+            { label: "Compliance Rejected", val: stats.rejected, icon: <ShieldAlert />, color: "text-red-600", bg: "bg-red-50" },
+            { label: "Pending Forwarding", val: stats.pendingGP, icon: <Clock />, color: "text-amber-600", bg: "bg-amber-50" },
+          ].map((s, i) => (
+            <div key={i} className="bg-white p-6 rounded-[2rem] border border-white shadow-sm flex items-center gap-5 transition-transform hover:scale-[1.02]">
+              <div className={`p-4 ${s.bg} ${s.color} rounded-2xl`}>{s.icon}</div>
+              <div>
+                <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">{s.label}</span>
+                <p className="text-2xl font-black text-slate-800">{s.val}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* FILTER BAR */}
+        <div className="bg-white/80 backdrop-blur-md sticky top-6 z-20 border border-slate-200 p-4 rounded-[2.5rem] shadow-xl flex flex-wrap gap-4 items-center mb-12">
+          <div className="flex items-center gap-2 px-4 py-2 border-r border-slate-200">
+            <Filter size={16} className="text-emerald-600" />
+            <span className="text-[10px] font-black uppercase text-slate-400">Filters</span>
+          </div>
+
+          <select value={courtFilter} onChange={(e) => setCourtFilter(e.target.value)} className="flex-1 min-w-[180px] bg-transparent text-sm font-bold p-2 outline-none cursor-pointer">
+            <option value="all">All Court Stations</option>
             {courts.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
           </select>
-        </div>
 
-        {/* 2. Compliance Status */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Compliance</label>
-          <select
-            value={complianceFilter}
-            onChange={(e) => setComplianceFilter(e.target.value)}
-            className={`rounded-xl px-4 py-3 text-sm font-black outline-none border-none ring-2 ring-transparent focus:ring-emerald-500/20 ${
-              complianceFilter === 'Approved' ? 'bg-emerald-100 text-emerald-700' : 
-              complianceFilter === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-slate-50 text-slate-700'
-            }`}
-          >
-            <option value="all">All Compliance</option>
+          <select value={complianceFilter} onChange={(e) => setComplianceFilter(e.target.value)} className="flex-1 min-w-[150px] bg-transparent text-sm font-bold p-2 outline-none cursor-pointer">
+            <option value="all">Compliance Status</option>
             <option value="Approved">Approved</option>
             <option value="Rejected">Rejected</option>
           </select>
-        </div>
 
-        {/* 3. GP Status */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-black text-slate-400 uppercase ml-2">GP Forwarding</label>
-          <select
-            value={gpStatusFilter}
-            onChange={(e) => setGpStatusFilter(e.target.value)}
-            className="bg-slate-50 border-none rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none ring-2 ring-transparent focus:ring-emerald-500/20"
-          >
-            <option value="all">All Progress</option>
-            <option value="Not Forwarded">Not Yet Forwarded</option>
+          {/* Added GP Status Filter to solve ts(6133) */}
+          <select value={gpStatusFilter} onChange={(e) => setGpStatusFilter(e.target.value)} className="flex-1 min-w-[150px] bg-transparent text-sm font-bold p-2 outline-none cursor-pointer">
+            <option value="all">GP Status (All)</option>
+            <option value="Forwarded">Forwarded</option>
+            <option value="Not Forwarded">Not Forwarded</option>
           </select>
-        </div>
 
-        {/* 4. Date Filter */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-black text-slate-400 uppercase ml-2">From Date</label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="bg-slate-50 border-none rounded-xl px-4 py-3 text-sm font-bold outline-none ring-2 ring-transparent focus:ring-emerald-500/20"
-          />
-        </div>
+          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="flex-1 min-w-[150px] bg-slate-50 rounded-xl px-4 py-2 text-sm font-bold outline-none border border-transparent focus:border-emerald-500 transition-all" />
 
-        {/* Reset */}
-        <button
-          onClick={() => {
-            setCourtFilter("all");
-            setComplianceFilter("all");
-            setGpStatusFilter("all");
-            setStartDate("");
-            setEndDate("");
-          }}
-          className="mt-auto py-3 text-[10px] font-black uppercase text-slate-400 hover:text-red-500 transition-colors"
-        >
-          Clear Filters
-        </button>
+          <button onClick={() => { setCourtFilter("all"); setComplianceFilter("all"); setGpStatusFilter("all"); setStartDate(""); }} className="p-3 bg-slate-100 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all" title="Reset Filters">
+            <RotateCcw size={18} />
+          </button>
+        </div>
       </div>
 
-      {/* PRINTABLE CONTENT */}
-      <div ref={reportRef} className="max-w-[1600px] mx-auto print:p-8">
-        {/* Header (Print only) */}
-        <div className="hidden print:block mb-8 border-b-2 border-slate-800 pb-6">
-          <h1 className="text-3xl font-black uppercase text-slate-900">Official Registry Report</h1>
-          <div className="grid grid-cols-3 mt-4 text-[10px] font-bold uppercase text-slate-600">
-            <p>Station: {courts.find(c => c._id === courtFilter)?.name || "All Stations"}</p>
-            <p>Status: {complianceFilter} | {gpStatusFilter}</p>
-            <p>Generated: {new Date().toLocaleDateString()}</p>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden print:border-none print:shadow-none">
-          <table className="w-full text-left border-collapse">
+      {/* PRINTABLE DOCUMENT */}
+      <div className="max-w-[1200px] mx-auto overflow-hidden print:p-0">
+        <div ref={reportRef} className="bg-white p-10 print-container">
+          <table className="w-full border-collapse">
             <thead>
-              <tr className="bg-slate-900 text-white print:bg-slate-100 print:text-black">
-                <th className="p-5 text-[10px] font-black uppercase tracking-widest">Station</th>
-                <th className="p-5 text-[10px] font-black uppercase tracking-widest">Deceased Name</th>
-                <th className="p-5 text-[10px] font-black uppercase tracking-widest">Cause No</th>
-                <th className="p-5 text-[10px] font-black uppercase tracking-widest">Compliance</th>
-                <th className="p-5 text-[10px] font-black uppercase tracking-widest">Date Forwarded</th>
+              <tr>
+                <td colSpan={5}>
+                  <div className="flex items-center gap-8 border-b-[6px] border-slate-900 pb-8 mb-8">
+                    <img src="https://judiciary.go.ke/wp-content/uploads/2023/05/logo1-Copy-2.png" alt="Logo" className="h-28 w-auto print:grayscale-0" />
+                    <div className="flex-1">
+                      <h1 className="text-1xl font-black text-slate-900 leading-tight uppercase">Office of the Registrar High Court</h1>
+                      <div className="flex items-center gap-4 mt-2">
+                        <span className="h-px bg-slate-300 flex-1"></span>
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-[0.4em]">Republic of Kenya</p>
+                        <span className="h-px bg-slate-300 flex-1"></span>
+                      </div>
+                      <p className="text-xs font-black text-emerald-800 uppercase bg-emerald-50 w-fit px-4 py-1.5 rounded-md mt-4">Official Compliance Report</p>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+              <tr className="hidden print:table-row">
+                <td colSpan={5}>
+                  <div className="grid grid-cols-3 bg-slate-100 p-6 rounded-2xl mb-8 border border-slate-200">
+                    <div>
+                      <span className="text-[10px] font-black text-slate-400 uppercase">Ref No.</span>
+                      <p className="text-xs font-mono font-bold tracking-tighter">ORHC-{new Date().getFullYear()}-{Math.floor(1000 + Math.random() * 9000)}</p>
+                    </div>
+                    <div className="text-center border-x border-slate-200">
+                      <span className="text-[10px] font-black text-slate-400 uppercase">Filter Start</span>
+                      <p className="text-xs font-bold">{startDate || "All Dates"}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] font-black text-slate-400 uppercase">Printed On</span>
+                      <p className="text-xs font-bold">{new Date().toLocaleDateString('en-GB')}</p>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+              <tr className="bg-slate-900 text-white print:bg-slate-200 print:text-black">
+                <th className="p-4 text-[10px] font-black uppercase text-left rounded-tl-xl">Court Station</th>
+                <th className="p-4 text-[10px] font-black uppercase text-left">Deceased Name</th>
+                <th className="p-4 text-[10px] font-black uppercase text-left">Cause No</th>
+                <th className="p-4 text-[10px] font-black uppercase text-center">Compliance</th>
+                <th className="p-4 text-[10px] font-black uppercase text-right rounded-tr-xl">GP Forwarding</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredRecords.length > 0 ? (
-                filteredRecords.map((r) => (
-                  <tr key={r._id} className="hover:bg-slate-50 transition-colors page-break-inside-avoid">
-                    <td className="p-5 text-[11px] font-bold text-slate-700 uppercase">{r.courtStation?.name}</td>
-                    <td className="p-5 text-xs font-black text-slate-900 uppercase">{r.nameOfDeceased}</td>
-                    <td className="p-5 font-mono text-[11px] text-slate-500">{r.causeNo}</td>
-                    <td className="p-5">
-                      <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase ${
-                        r.form60Compliance === 'Approved' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
-                      }`}>
-                        {r.form60Compliance}
-                      </span>
-                    </td>
-                    <td className="p-5 text-[11px] font-bold text-slate-500">
-                      {r.dateForwardedToGP ? r.dateForwardedToGP.split('T')[0] : <span className="text-orange-500 uppercase">Pending GP</span>}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={5} className="p-20 text-center text-slate-400 font-bold uppercase text-sm tracking-widest">
-                    No records match your current filters
+              {filteredRecords.map((r) => (
+                <tr key={r._id} className="page-break-inside-avoid">
+                  <td className="p-4 text-[11px] font-bold text-slate-600 uppercase">{r.courtStation?.name}</td>
+                  <td className="p-4 text-[11px] font-black text-slate-900 uppercase">{r.nameOfDeceased}</td>
+                  <td className="p-4 font-mono text-[10px] text-slate-500">{r.causeNo}</td>
+                  <td className="p-4 text-center">
+                    <span className={`inline-block px-3 py-1 rounded-full text-[9px] font-black uppercase border ${
+                      r.form60Compliance === 'Approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100'
+                    }`}>
+                      {r.form60Compliance}
+                    </span>
+                  </td>
+                  <td className="p-4 text-[10px] font-black text-right uppercase">
+                    {r.dateForwardedToGP ? r.dateForwardedToGP.split('T')[0] : <span className="text-amber-600">Pending</span>}
                   </td>
                 </tr>
-              )}
+              ))}
             </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={5} className="pt-10">
+                  <div className="flex justify-between items-end border-t border-slate-200 pt-6">
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase">System Authentication</p>
+                      <p className="text-[9px] text-slate-500 italic">Urithi Registry Compliance Division</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="h-10 w-32 border-b-2 border-slate-300 ml-auto mb-2"></div>
+                      <p className="text-[10px] font-black text-slate-900 uppercase">Official Stamp/Sign</p>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
@@ -206,8 +232,18 @@ const ReportsPage: React.FC = () => {
       <style>{`
         @media print {
           .no-print { display: none !important; }
-          body { background: white !important; }
-          @page { size: landscape; margin: 0.5in; }
+          body { background: white !important; padding: 0 !important; }
+          @page { 
+            size: portrait; 
+            margin: 0; /* REMOVES BROWSER HEADERS/FOOTERS */
+          }
+          .print-container {
+            padding: 20mm 15mm !important; /* REPLACES MARGIN FOR CONTENT */
+          }
+          table { width: 100%; border-spacing: 0; }
+          thead { display: table-header-group; }
+          tfoot { display: table-footer-group; }
+          tr { page-break-inside: avoid; }
         }
       `}</style>
     </div>
