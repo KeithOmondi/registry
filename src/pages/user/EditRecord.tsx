@@ -20,6 +20,34 @@ interface EditRecordProps {
   onClose: () => void;
 }
 
+const rejectionReasons = [
+  "No Stamp or Seal/Note Dated",
+  "Conflicting Case Number between the E Citizen Print Receipt and the Form 60 Notice",
+  "Lack of Deputy and or District Registrars' Signature and Name",
+  "Prepare a corrigenda",
+  "Proof of gazette fees payment not attached NO receipt attached",
+  "No Case Number on Form 60 and/or Government Printer Receipt",
+  "Lack of Petitioner(s) name and or deceased name in the Form 60 Notice",
+  "Attach original bankslip and not a photocopy unless paid via ECitizen platform",
+  "Same deceased details in two different case numbers within submitted Notices from the Station",
+  "Not indicating whether the matter is testate or intestate",
+  "Same case number with two different petitioners and or deceased names",
+  "Deputy registrar and or District Registrar name not typed",
+  "Receipt mismatch/wrong receipt",
+  "Bankers’ cheques be addressed to Government Printers and not Kenya Gazette",
+  "Altered Form 60 Notice",
+  "One deceased per petition",
+  "Different Court Stations in one Form 60 notice",
+  "Form 60 Notice missing the date of Death of the Deceased Persons",
+  "Rejected from the Govt. Printers due to being sent directly to their offices",
+  "Attach the original Form 60 notice NOT a copy",
+  "Form 60 notice without a receipt",
+  "Duplicate/Photocopy of Form 60",
+  "FORM 60 missing",
+  "Two Deceased in one Form 60",
+  "Kindly confirm the deceased name",
+];
+
 const EditRecord: React.FC<EditRecordProps> = ({ record, onClose }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { courts } = useSelector((state: RootState) => state.courts);
@@ -56,7 +84,7 @@ const EditRecord: React.FC<EditRecordProps> = ({ record, onClose }) => {
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (formData.form60Compliance === "Rejected" && !formData.rejectionReason) {
-      return toast.error("⚠️ Please provide a rejection reason.");
+      return toast.error("⚠️ Please select a rejection reason.");
     }
 
     dispatch(
@@ -79,7 +107,6 @@ const EditRecord: React.FC<EditRecordProps> = ({ record, onClose }) => {
       .catch((err: string) => toast.error(err));
   };
 
-  // Reusable Input Component for Styling Consistency
   const labelStyle =
     "block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1 ml-1";
   const inputStyle =
@@ -182,7 +209,11 @@ const EditRecord: React.FC<EditRecordProps> = ({ record, onClose }) => {
                 name="form60Compliance"
                 value={formData.form60Compliance}
                 onChange={handleChange}
-                className={`${inputStyle} ${formData.form60Compliance === "Rejected" ? "text-red-600 font-semibold" : "text-green-600 font-semibold"}`}
+                className={`${inputStyle} ${
+                  formData.form60Compliance === "Rejected"
+                    ? "text-red-600 font-semibold"
+                    : "text-green-600 font-semibold"
+                }`}
               >
                 <option value="Approved">Approved</option>
                 <option value="Rejected">Rejected</option>
@@ -210,14 +241,19 @@ const EditRecord: React.FC<EditRecordProps> = ({ record, onClose }) => {
           <label className={`${labelStyle} text-red-600`}>
             Rejection Reason
           </label>
-          <input
-            type="text"
+          <select
             name="rejectionReason"
             value={formData.rejectionReason}
             onChange={handleChange}
-            placeholder="Explain why the record was rejected..."
             className={`${inputStyle} border-red-200 bg-red-50 focus:ring-red-500`}
-          />
+          >
+            <option value="">Select a reason...</option>
+            {rejectionReasons.map((reason, idx) => (
+              <option key={idx} value={reason}>
+                {reason}
+              </option>
+            ))}
+          </select>
         </div>
       )}
 

@@ -6,7 +6,7 @@ import {
 import api from "../../api/axios";
 
 /* =======================
-   TYPES & INTERFACES
+   TYPES
 ======================= */
 
 export interface Court {
@@ -15,7 +15,6 @@ export interface Court {
   level?: string;
 }
 
-// Added to support the Audit Trail UI
 export interface Auditor {
   _id: string;
   firstName: string;
@@ -42,16 +41,16 @@ export interface Record {
   volumeNo?: string;
   datePublished?: string | null;
   kpiAlertSent: boolean;
-  // --- NEW AUDIT FIELDS ---
+
   updatedBy?: Auditor | null;
   lastEditAction?: string;
-  // ------------------------
+
   createdAt: string;
   updatedAt: string;
 }
 
 /* =======================
-   DTOs (Data Transfer Objects)
+   DTOs
 ======================= */
 
 export interface CreateRecordPayload {
@@ -75,7 +74,6 @@ export interface BulkForwardDatePayload {
   date: string;
 }
 
-// Updated to receive the fresh records back from the server
 export interface BulkUpdateResponse {
   success: boolean;
   modifiedCount: number;
@@ -91,7 +89,21 @@ export interface RecordStats {
 }
 
 /* =======================
-   ASYNC THUNKS
+   HELPERS
+======================= */
+
+// Merge old record state with incoming update, safely preserving nested objects
+const mergeRecord = (oldRec: Record, newRec: Partial<Record>): Record => ({
+  ...oldRec,
+  ...newRec,
+  courtStation: newRec.courtStation ?? oldRec.courtStation,
+  updatedBy: newRec.updatedBy ?? oldRec.updatedBy ?? null,
+  lastEditAction: newRec.lastEditAction ?? oldRec.lastEditAction ?? "Updated record",
+  updatedAt: newRec.updatedAt ?? oldRec.updatedAt,
+});
+
+/* =======================
+   THUNKS
 ======================= */
 
 export const fetchRecords = createAsyncThunk<Record[]>(
@@ -214,69 +226,71 @@ const recordSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // FETCH ALL
+      /* ===== FETCH ALL ===== */
       .addCase(fetchRecords.fulfilled, (state, action) => {
         state.loading = false;
         state.records = action.payload;
       })
 
-      // FETCH ONE
+      /* ===== FETCH ONE ===== */
       .addCase(fetchRecordById.fulfilled, (state, action) => {
         state.loading = false;
         state.selectedRecord = action.payload;
       })
 
-      // CREATE
+      /* ===== CREATE ===== */
       .addCase(createRecord.fulfilled, (state, action) => {
         state.loading = false;
         state.records.unshift(action.payload);
       })
 
-      // UPDATE (Single)
+      /* ===== UPDATE SINGLE ===== */
       .addCase(updateRecord.fulfilled, (state, action) => {
         state.loading = false;
-        const idx = state.records.findIndex(
-          (r) => r._id === action.payload._id,
-        );
-        if (idx !== -1) state.records[idx] = action.payload;
-        if (state.selectedRecord?._id === action.payload._id) {
-          state.selectedRecord = action.payload;
+        const updated = action.payload;
+
+        // Merge into records array
+        const idx = state.records.findIndex(r => r._id === updated._id);
+        if (idx !== -1) {
+          state.records[idx] = mergeRecord(state.records[idx], updated);
+        } else {
+          state.records.unshift(updated);
+        }
+
+        // Merge into selectedRecord if it matches
+        if (state.selectedRecord?._id === updated._id) {
+          state.selectedRecord = mergeRecord(state.selectedRecord, updated);
         }
       })
 
-      // BULK UPDATE (Now intelligently updates the records array)
-      .addCase(
-        updateMultipleRecordsDateForwarded.fulfilled,
-        (state, action) => {
-          state.loading = false;
-          // Merge the updated records back into the state
-          action.payload.records.forEach((updatedRecord) => {
-            const idx = state.records.findIndex(
-              (r) => r._id === updatedRecord._id,
-            );
-            if (idx !== -1) state.records[idx] = updatedRecord;
-          });
-        },
-      )
-
-      // DELETE
-      .addCase(deleteRecord.fulfilled, (state, action) => {
+      /* ===== BULK UPDATE ===== */
+      .addCase(updateMultipleRecordsDateForwarded.fulfilled, (state, action) => {
         state.loading = false;
-        state.records = state.records.filter((r) => r._id !== action.payload);
+
+        action.payload.records.forEach(updated => {
+          const idx = state.records.findIndex(r => r._id === updated._id);
+          if (idx !== -1) {
+            state.records[idx] = mergeRecord(state.records[idx], updated);
+          }
+        });
       })
 
-      // STATS
+      /* ===== DELETE ===== */
+      .addCase(deleteRecord.fulfilled, (state, action) => {
+        state.loading = false;
+        state.records = state.records.filter(r => r._id !== action.payload);
+      })
+
+      /* ===== STATS ===== */
       .addCase(fetchRecordStats.fulfilled, (state, action) => {
         state.loading = false;
         state.stats = action.payload;
       })
 
-      /* =====================================
-         MATCHERS (PENDING/REJECTED)
-         ===================================== */
+      /* ===== MATCHERS ===== */
       .addMatcher(
         (action): action is PayloadAction => action.type.endsWith("/pending"),
-        (state: RecordsState) => {
+        (state) => {
           state.loading = true;
           state.error = null;
         },
@@ -284,7 +298,7 @@ const recordSlice = createSlice({
       .addMatcher(
         (action): action is PayloadAction<string> =>
           action.type.endsWith("/rejected"),
-        (state: RecordsState, action) => {
+        (state, action) => {
           state.loading = false;
           state.error = action.payload || "An unexpected error occurred";
         },

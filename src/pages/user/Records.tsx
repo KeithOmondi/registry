@@ -57,7 +57,7 @@ const RecordPage: React.FC = () => {
 
   const currentRecords = filteredRecords.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
+    currentPage * itemsPerPage
   );
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
 
@@ -68,11 +68,10 @@ const RecordPage: React.FC = () => {
         updateMultipleRecordsDateForwarded({
           ids: selectedIds,
           date: bulkDate,
-        }),
+        })
       ).unwrap();
       toast.success("Batch updated successfully");
       setSelectedIds([]);
-      // dispatch(fetchRecords()) is no longer needed as slice handles the state merge
     } catch (err: any) {
       toast.error(err);
     }
@@ -205,7 +204,7 @@ const RecordPage: React.FC = () => {
                         setSelectedIds((prev) =>
                           prev.includes(r._id)
                             ? prev.filter((id) => id !== r._id)
-                            : [...prev, r._id],
+                            : [...prev, r._id]
                         )
                       }
                     />
@@ -240,9 +239,7 @@ const RecordPage: React.FC = () => {
                     {r.dateForwardedToGP ? (
                       new Date(r.dateForwardedToGP).toLocaleDateString("en-KE")
                     ) : (
-                      <span className="italic opacity-50 text-[10px]">
-                        Pending
-                      </span>
+                      <span className="italic opacity-50 text-[10px]">Pending</span>
                     )}
                   </td>
                   <td className="p-4 text-center">
@@ -266,6 +263,7 @@ const RecordPage: React.FC = () => {
                         )}
                         {r.form60Compliance}
                       </span>
+                      {/* Rejection reason persists */}
                       {r.rejectionReason && (
                         <span className="text-[9px] text-red-400 italic font-medium leading-tight max-w-[120px]">
                           {r.rejectionReason}
@@ -275,7 +273,7 @@ const RecordPage: React.FC = () => {
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
-                      {/* Standard Edit Action */}
+                      {/* Edit Button */}
                       <button
                         onClick={() => {
                           setSelectedRecord(r);
@@ -287,14 +285,12 @@ const RecordPage: React.FC = () => {
                         <Edit3 size={16} />
                       </button>
 
-                      {/* AUDIT POPUP TRIGGER */}
+                      {/* AUDIT POPUP */}
                       {r.updatedBy && (
                         <div className="relative group/audit">
                           <button className="p-2 hover:bg-[#C8A239]/10 text-slate-400 hover:text-[#C8A239] rounded-lg transition-colors cursor-help">
                             <Info size={16} />
                           </button>
-
-                          {/* THE AUDIT TOOLTIP */}
                           <div className="absolute bottom-full right-0 mb-3 hidden group-hover/audit:block w-72 bg-[#1a1a1a] text-white p-4 rounded-2xl shadow-2xl z-[150] border border-white/10 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2">
                             <div className="space-y-3">
                               <div className="flex items-center justify-between border-b border-white/10 pb-2">
@@ -303,7 +299,6 @@ const RecordPage: React.FC = () => {
                                 </h4>
                                 <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                               </div>
-
                               <div className="flex justify-between items-start gap-4">
                                 <span className="text-slate-400 text-[9px] uppercase font-bold">
                                   Officer
@@ -312,16 +307,13 @@ const RecordPage: React.FC = () => {
                                   {r.updatedBy.firstName} {r.updatedBy.lastName}
                                 </span>
                               </div>
-
                               <div className="grid grid-cols-2 gap-2 pt-1">
                                 <div>
                                   <span className="text-slate-400 text-[9px] uppercase font-bold block">
                                     Date
                                   </span>
                                   <span className="text-[10px]">
-                                    {new Date(r.updatedAt).toLocaleDateString(
-                                      "en-KE",
-                                    )}
+                                    {new Date(r.updatedAt).toLocaleDateString("en-KE")}
                                   </span>
                                 </div>
                                 <div className="text-right">
@@ -329,21 +321,19 @@ const RecordPage: React.FC = () => {
                                     Time
                                   </span>
                                   <span className="text-[10px]">
-                                    {new Date(r.updatedAt).toLocaleTimeString(
-                                      "en-KE",
-                                      { hour: "2-digit", minute: "2-digit" },
-                                    )}
+                                    {new Date(r.updatedAt).toLocaleTimeString("en-KE", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
                                   </span>
                                 </div>
                               </div>
-
                               <div className="mt-2 pt-2 border-t border-white/5 bg-white/5 p-2 rounded-lg">
                                 <span className="text-[8px] text-[#C8A239] uppercase font-black block mb-1">
                                   Last Activity
                                 </span>
                                 <p className="text-[10px] text-slate-200 italic leading-tight">
-                                  {r.lastEditAction ||
-                                    "Manual database adjustment"}
+                                  {r.lastEditAction || "Manual database adjustment"}
                                 </p>
                               </div>
                             </div>
@@ -404,8 +394,7 @@ const RecordPage: React.FC = () => {
                 record={selectedRecord}
                 onClose={() => {
                   setEditMode(false);
-                  // Not strictly needed with Redux merge, but kept for absolute data sync
-                  dispatch(fetchRecords());
+                  dispatch(fetchRecords()); // ensures latest audit + rejection reason
                 }}
               />
             </div>
