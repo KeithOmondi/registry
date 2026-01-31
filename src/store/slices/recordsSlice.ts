@@ -6,7 +6,7 @@ import {
 import api from "../../api/axios";
 
 /* =======================
-   TYPES
+    TYPES & INTERFACES
 ======================= */
 
 export interface Court {
@@ -41,16 +41,35 @@ export interface Record {
   volumeNo?: string;
   datePublished?: string | null;
   kpiAlertSent: boolean;
-
   updatedBy?: Auditor | null;
   lastEditAction?: string;
-
   createdAt: string;
   updatedAt: string;
 }
 
+// Analytics Specific Types
+export interface AnalyticsSummary {
+  totalRecords: number;
+  compliantCount: number;
+  nonCompliantCount: number;
+  pendingForwarding: number;
+  averageLeadTime: number;
+}
+
+export interface CourtPerformance {
+  _id: string;
+  courtName: string;
+  count: number;
+  complianceRate: number;
+}
+
+export interface AnalyticsData {
+  summary: AnalyticsSummary[];
+  courtPerformance: CourtPerformance[];
+}
+
 /* =======================
-   DTOs
+    DTOs
 ======================= */
 
 export interface CreateRecordPayload {
@@ -89,21 +108,21 @@ export interface RecordStats {
 }
 
 /* =======================
-   HELPERS
+    HELPERS
 ======================= */
 
-// Merge old record state with incoming update, safely preserving nested objects
 const mergeRecord = (oldRec: Record, newRec: Partial<Record>): Record => ({
   ...oldRec,
   ...newRec,
   courtStation: newRec.courtStation ?? oldRec.courtStation,
   updatedBy: newRec.updatedBy ?? oldRec.updatedBy ?? null,
-  lastEditAction: newRec.lastEditAction ?? oldRec.lastEditAction ?? "Updated record",
+  lastEditAction:
+    newRec.lastEditAction ?? oldRec.lastEditAction ?? "Updated record",
   updatedAt: newRec.updatedAt ?? oldRec.updatedAt,
 });
 
 /* =======================
-   THUNKS
+    THUNKS
 ======================= */
 
 export const fetchRecords = createAsyncThunk<Record[]>(
@@ -117,6 +136,21 @@ export const fetchRecords = createAsyncThunk<Record[]>(
     }
   },
 );
+
+// NEW: Fetch Analytics Thunk
+export const fetchAnalytics = createAsyncThunk<
+  AnalyticsData,
+  string | undefined
+>("records/fetchAnalytics", async (courtId = "all", { rejectWithValue }) => {
+  try {
+    const res = await api.get(`/records/analytics?courtId=${courtId}`);
+    return res.data.data;
+  } catch (err: any) {
+    return rejectWithValue(
+      err.response?.data?.message || "Failed to fetch analytics",
+    );
+  }
+});
 
 export const fetchRecordById = createAsyncThunk<Record, string>(
   "records/fetchById",
@@ -194,13 +228,16 @@ export const updateMultipleRecordsDateForwarded = createAsyncThunk<
 });
 
 /* =======================
-   SLICE
+    SLICE
 ======================= */
 
 interface RecordsState {
   records: Record[];
   selectedRecord: Record | null;
+  // Analytics and Stats
   stats: RecordStats | null;
+  summary: AnalyticsSummary | null;
+  courtPerformance: CourtPerformance[];
   loading: boolean;
   error: string | null;
 }
@@ -209,6 +246,8 @@ const initialState: RecordsState = {
   records: [],
   selectedRecord: null,
   stats: null,
+  summary: null,
+  courtPerformance: [],
   loading: false,
   error: null,
 };
@@ -223,6 +262,10 @@ const recordSlice = createSlice({
     clearRecordsError(state) {
       state.error = null;
     },
+    resetAnalytics(state) {
+      state.summary = null;
+      state.courtPerformance = [];
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -230,6 +273,14 @@ const recordSlice = createSlice({
       .addCase(fetchRecords.fulfilled, (state, action) => {
         state.loading = false;
         state.records = action.payload;
+      })
+
+      /* ===== ANALYTICS (NEW) ===== */
+      .addCase(fetchAnalytics.fulfilled, (state, action) => {
+        state.loading = false;
+        // MongoDB facet returns an array for summary
+        state.summary = action.payload.summary[0] || null;
+        state.courtPerformance = action.payload.courtPerformance;
       })
 
       /* ===== FETCH ONE ===== */
@@ -248,37 +299,35 @@ const recordSlice = createSlice({
       .addCase(updateRecord.fulfilled, (state, action) => {
         state.loading = false;
         const updated = action.payload;
-
-        // Merge into records array
-        const idx = state.records.findIndex(r => r._id === updated._id);
+        const idx = state.records.findIndex((r) => r._id === updated._id);
         if (idx !== -1) {
           state.records[idx] = mergeRecord(state.records[idx], updated);
         } else {
           state.records.unshift(updated);
         }
-
-        // Merge into selectedRecord if it matches
         if (state.selectedRecord?._id === updated._id) {
           state.selectedRecord = mergeRecord(state.selectedRecord, updated);
         }
       })
 
       /* ===== BULK UPDATE ===== */
-      .addCase(updateMultipleRecordsDateForwarded.fulfilled, (state, action) => {
-        state.loading = false;
-
-        action.payload.records.forEach(updated => {
-          const idx = state.records.findIndex(r => r._id === updated._id);
-          if (idx !== -1) {
-            state.records[idx] = mergeRecord(state.records[idx], updated);
-          }
-        });
-      })
+      .addCase(
+        updateMultipleRecordsDateForwarded.fulfilled,
+        (state, action) => {
+          state.loading = false;
+          action.payload.records.forEach((updated) => {
+            const idx = state.records.findIndex((r) => r._id === updated._id);
+            if (idx !== -1) {
+              state.records[idx] = mergeRecord(state.records[idx], updated);
+            }
+          });
+        },
+      )
 
       /* ===== DELETE ===== */
       .addCase(deleteRecord.fulfilled, (state, action) => {
         state.loading = false;
-        state.records = state.records.filter(r => r._id !== action.payload);
+        state.records = state.records.filter((r) => r._id !== action.payload);
       })
 
       /* ===== STATS ===== */
@@ -306,5 +355,6 @@ const recordSlice = createSlice({
   },
 });
 
-export const { clearSelectedRecord, clearRecordsError } = recordSlice.actions;
+export const { clearSelectedRecord, clearRecordsError, resetAnalytics } =
+  recordSlice.actions;
 export default recordSlice.reducer;

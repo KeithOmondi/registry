@@ -21,9 +21,9 @@ import ScansPage from "./pages/user/Scans";
 
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
 import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
-import { AdminRecordsPage } from "./pages/admin/AdminRecordsPage";
 import { AdminReportsPage } from "./pages/admin/AdminReportsPage";
 import { Login } from "./pages/auth/Login";
+import AdminRecordsPage from "./pages/admin/AdminRecordsPage";
 
 function App() {
   const dispatch = useDispatch<AppDispatch>();
