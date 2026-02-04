@@ -249,7 +249,7 @@ const ReportsPage: React.FC = () => {
                   <div className="flex items-center justify-between border-b-[6px] border-slate-900 pb-8 mb-8">
                     <div className="flex items-center gap-8">
                       <img
-                        src="https://judiciary.go.ke/wp-content/uploads/2023/05/logo1-Copy-2.png"
+                        src="https://res.cloudinary.com/do0yflasl/image/upload/v1770035125/JOB_LOGO_qep9lj.jpg"
                         alt="Logo"
                         className="h-28 w-auto print:grayscale-0"
                       />
@@ -274,7 +274,7 @@ const ReportsPage: React.FC = () => {
                       <div className="p-1 border border-slate-200 bg-white">
                         <QRCode
                           size={65}
-                          value={`https://urithi.judiciary.go.ke/verify/${reportId}`}
+                          value={`https://urithi.vercel.app/verify/${reportId}`}
                         />
                       </div>
                       <span className="text-[8px] font-mono font-bold text-slate-400 uppercase">

@@ -21,9 +21,10 @@ import ScansPage from "./pages/user/Scans";
 
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
 import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
-import { AdminReportsPage } from "./pages/admin/AdminReportsPage";
 import { Login } from "./pages/auth/Login";
 import AdminRecordsPage from "./pages/admin/AdminRecordsPage";
+import AdminReportsPage from "./pages/admin/AdminReportsPage";
+import AdminEntryPage from "./pages/admin/AdminEntry";
 
 function App() {
   const dispatch = useDispatch<AppDispatch>();
@@ -172,6 +173,16 @@ function App() {
             <ProtectedRoute adminOnly>
               <AdminLayout>
                 <AdminReportsPage />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/entries"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminLayout>
+                <AdminEntryPage />
               </AdminLayout>
             </ProtectedRoute>
           }

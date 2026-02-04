@@ -1,105 +1,154 @@
-import { useEffect, useState, useMemo } from "react";
-import { 
-  Database, 
-  Trash2, 
-  Search, 
-  ChevronLeft, 
-  ChevronRight, 
-  Info, 
-  AlertCircle, 
-  Calendar 
+import { useEffect, useMemo, useState } from "react";
+import {
+  Database,
+  Trash2,
+  Search,
+  Info,
+  Calendar,
+  CheckCircle2,
+  XCircle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { fetchRecords, deleteRecord, clearRecordsError } from "../../store/slices/recordsSlice";
+import {
+  fetchRecords,
+  deleteRecord,
+  updateMultipleRecordsDateForwarded,
+} from "../../store/slices/recordsSlice";
 import { fetchCourts } from "../../store/slices/courtsSlice";
+import toast, { Toaster } from "react-hot-toast";
 
 const AdminRecordsPage = () => {
   const dispatch = useAppDispatch();
-  const { records, loading, error } = useAppSelector((state) => state.records);
+  const { records } = useAppSelector((state) => state.records);
   const { courts } = useAppSelector((state) => state.courts);
 
-  // SEARCH & FILTER STATE
+  /* =======================
+      STATE
+  ======================== */
   const [searchTerm, setSearchTerm] = useState("");
   const [courtFilter, setCourtFilter] = useState("");
-  
-  // PAGINATION STATE
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 25;
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkDate, setBulkDate] = useState("");
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15; // Set how many rows you want per page
+
+  /* =======================
+      LOAD DATA
+  ======================== */
   useEffect(() => {
     dispatch(fetchRecords());
     dispatch(fetchCourts());
   }, [dispatch]);
 
-  useEffect(() => {
-    if (error) {
-      const t = setTimeout(() => dispatch(clearRecordsError()), 4000);
-      return () => clearTimeout(t);
-    }
-  }, [error, dispatch]);
-
-  /* =========================
-      FILTER LOGIC
-  ========================= */
+  /* =======================
+      FILTER & PAGINATE
+  ======================== */
   const filteredRecords = useMemo(() => {
     return records.filter((r) => {
       const matchesSearch =
         !searchTerm ||
         r.nameOfDeceased?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.causeNo?.toLowerCase().includes(searchTerm.toLowerCase());
+
       const matchesCourt = !courtFilter || r.courtStation?._id === courtFilter;
       return matchesSearch && matchesCourt;
     });
   }, [records, searchTerm, courtFilter]);
 
-  const currentRecords = filteredRecords.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // Logic for slicing the data
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
+  const paginatedRecords = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredRecords.slice(start, start + itemsPerPage);
+  }, [filteredRecords, currentPage]);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, courtFilter]);
+
+  /* =======================
+      HANDLERS
+  ======================== */
   const handleDelete = (id: string) => {
-    if (window.confirm("Are you sure you want to permanently delete this record?")) {
+    if (
+      window.confirm(
+        "Permanently delete this record? This action is irreversible.",
+      )
+    ) {
       dispatch(deleteRecord(id));
+      toast.success("Record purged from system");
+    }
+  };
+
+  const handleBulkUpdate = async () => {
+    if (!bulkDate) return toast.error("Select forwarding date");
+    try {
+      await dispatch(
+        updateMultipleRecordsDateForwarded({
+          ids: selectedIds,
+          date: bulkDate,
+        }),
+      ).unwrap();
+      toast.success("Batch update complete");
+      setSelectedIds([]);
+      setBulkDate("");
+    } catch (err: any) {
+      toast.error(err);
     }
   };
 
   return (
-    <div className="p-8 max-w-[1800px] mx-auto space-y-6 animate-in fade-in duration-500">
-      
-      {/* HEADER & TOP STATS */}
+    <div className="p-8 max-w-[1900px] mx-auto space-y-6">
+      <Toaster position="top-right" />
+
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase flex items-center gap-3">
             <Database className="text-emerald-600" size={32} />
-            Records Management
+            Admin Records Vault
           </h1>
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-            System Administration & Audit Control
+            Full System Audit & Registry Control
           </p>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 min-w-[180px]">
-          <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600"><Calendar size={20} /></div>
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+          <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+            <Calendar size={20} />
+          </div>
           <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase">Total Entries</p>
-            <p className="text-xl font-black text-slate-800">{filteredRecords.length}</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase">
+              Total Listed
+            </p>
+            <p className="text-xl font-black text-slate-800">
+              {filteredRecords.length}
+            </p>
           </div>
         </div>
       </div>
 
-      {/* FILTERS */}
+      {/* FILTER + BULK BAR */}
       <div className="flex flex-wrap gap-4 items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-        <div className="relative min-w-[300px] flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+        <div className="relative flex-1 min-w-[300px]">
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            size={16}
+          />
           <input
             type="text"
             placeholder="Search Deceased or Cause No..."
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+
         <select
           className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/20"
           value={courtFilter}
@@ -107,123 +156,214 @@ const AdminRecordsPage = () => {
         >
           <option value="">All Court Stations</option>
           {courts.map((c) => (
-            <option key={c._id} value={c._id}>{c.name}</option>
+            <option key={c._id} value={c._id}>
+              {c.name}
+            </option>
           ))}
         </select>
+
+        {selectedIds.length > 0 && (
+          <div className="flex items-center gap-3 bg-slate-900 text-white px-4 py-1.5 rounded-xl animate-in zoom-in duration-300">
+            <span className="text-[10px] font-black uppercase">
+              {selectedIds.length} Selected
+            </span>
+            <input
+              type="date"
+              className="bg-slate-800 text-white text-xs rounded-lg px-2 py-1 border-none"
+              value={bulkDate}
+              onChange={(e) => setBulkDate(e.target.value)}
+            />
+            <button
+              onClick={handleBulkUpdate}
+              className="bg-emerald-600 text-[10px] font-black uppercase px-3 py-2 rounded-lg"
+            >
+              Forward to GP
+            </button>
+            <button
+              onClick={() => setSelectedIds([])}
+              className="text-slate-400 hover:text-white"
+            >
+              <XCircle size={18} />
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* FEEDBACK */}
-      {loading && (
-        <div className="flex items-center gap-3 text-emerald-600 animate-pulse font-black text-[10px] uppercase">
-          <div className="h-2 w-2 bg-emerald-600 rounded-full" />
-          Synchronizing with central vault...
-        </div>
-      )}
-
-      {error && (
-        <div className="p-4 rounded-2xl bg-red-50 border border-red-100 text-red-600 text-xs font-bold flex items-center gap-3">
-          <AlertCircle size={18} /> {error}
-        </div>
-      )}
-
-      {/* MAIN TABLE */}
+      {/* TABLE */}
       <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full border-collapse">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-100">
-                {["Station", "Cause No", "Deceased", "Received", "Compliance", "Audit", "Action"].map((head) => (
-                  <th key={head} className={`px-6 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest ${head === 'Action' ? 'text-right' : 'text-left'}`}>
-                    {head}
-                  </th>
-                ))}
+              <tr className="bg-slate-50/80 border-b border-slate-100 font-black text-[9px] text-slate-400 uppercase tracking-widest">
+                <th className="px-4 py-5 text-center w-12">
+                  <input
+                    type="checkbox"
+                    className="accent-emerald-600"
+                    onChange={(e) =>
+                      e.target.checked
+                        ? setSelectedIds(paginatedRecords.map((r) => r._id))
+                        : setSelectedIds([])
+                    }
+                  />
+                </th>
+                <th className="px-4 py-5 text-left">Court Station</th>
+                <th className="px-4 py-5 text-left">Cause No.</th>
+                <th className="px-4 py-5 text-left">Name of Deceased</th>
+                <th className="px-4 py-5 text-left">Received At PR</th>
+                <th className="px-4 py-5 text-left">E-Citizen Receipt</th>
+                <th className="px-4 py-5 text-center">Receiving Lead</th>
+                <th className="px-4 py-5 text-left">Forwarded To GP</th>
+                <th className="px-4 py-5 text-center">Forwarding Lead</th>
+                <th className="px-4 py-5 text-left">Compliance</th>
+                <th className="px-4 py-5 text-right">Actions</th>
               </tr>
             </thead>
+
             <tbody className="divide-y divide-slate-50">
-              {currentRecords.map((r) => (
-                <tr key={r._id} className="group hover:bg-slate-50/50 transition-all">
-                  <td className="px-6 py-4">
-                    <span className="text-[11px] font-black text-slate-700 bg-slate-100 px-2 py-1 rounded-md uppercase">
+              {paginatedRecords.map((r) => (
+                <tr
+                  key={r._id}
+                  className="group hover:bg-slate-50/50 transition-all"
+                >
+                  <td className="px-4 py-4 text-center">
+                    <input
+                      type="checkbox"
+                      className="accent-emerald-600"
+                      checked={selectedIds.includes(r._id)}
+                      onChange={() =>
+                        setSelectedIds((prev) =>
+                          prev.includes(r._id)
+                            ? prev.filter((id) => id !== r._id)
+                            : [...prev, r._id],
+                        )
+                      }
+                    />
+                  </td>
+                  <td className="px-4 py-4">
+                    <span className="text-[10px] font-black text-slate-700 bg-slate-100 px-2 py-0.5 rounded uppercase">
                       {r.courtStation?.name}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm font-bold text-slate-800 font-mono">{r.causeNo}</td>
-                  <td className="px-6 py-4 text-sm font-medium text-slate-600 uppercase">{r.nameOfDeceased}</td>
-                  <td className="px-6 py-4 text-xs font-bold text-slate-400">
+                  <td className="px-4 py-4 text-xs font-mono font-bold">
+                    {r.causeNo}
+                  </td>
+                  <td className="px-4 py-4 text-xs font-black uppercase text-slate-600">
+                    {r.nameOfDeceased}
+                  </td>
+                  <td className="px-4 py-4 text-[11px] text-slate-500">
                     {new Date(r.dateReceived).toLocaleDateString("en-KE")}
                   </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter shadow-sm ${
-                      r.form60Compliance === "Approved" 
-                        ? "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200" 
-                        : "bg-red-100 text-red-700 ring-1 ring-red-200"
-                    }`}>
+                  <td className="px-4 py-4 text-[11px] text-slate-500">
+                    {r.dateOfReceipt
+                      ? new Date(r.dateOfReceipt).toLocaleDateString("en-KE")
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-4 text-center">
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${Number(r.receivingLeadTime) > 5 ? "bg-red-50 text-red-600" : "bg-slate-100 text-slate-500"}`}
+                    >
+                      {r.receivingLeadTime ?? 0} Days
+                    </span>
+                  </td>
+                  <td className="px-4 py-4 text-[11px] text-slate-500">
+                    {r.dateForwardedToGP
+                      ? new Date(r.dateForwardedToGP).toLocaleDateString(
+                          "en-KE",
+                        )
+                      : "Pending"}
+                  </td>
+                  <td className="px-4 py-4 text-center text-[10px] font-bold text-slate-400">
+                    {r.forwardingLeadTime ?? "—"}
+                  </td>
+                  <td className="px-4 py-4">
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase flex items-center gap-1 w-fit ${r.form60Compliance === "Approved" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}
+                    >
+                      {r.form60Compliance === "Approved" ? (
+                        <CheckCircle2 size={10} />
+                      ) : (
+                        <XCircle size={10} />
+                      )}
                       {r.form60Compliance}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
-                    {r.updatedBy ? (
-                      <div className="relative group/audit">
-                        <button className="p-2 text-slate-300 hover:text-emerald-600 transition-colors">
-                          <Info size={18} />
+                  <td className="px-4 py-4 text-right">
+                    {r.updatedBy && (
+                      <div className="relative inline-block group">
+                        <button className="p-1.5 text-slate-300 hover:text-emerald-600">
+                          <Info size={16} />
                         </button>
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 hidden group-hover/audit:block w-64 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl z-50 animate-in zoom-in-95">
-                          <div className="space-y-2">
-                            <h4 className="text-[9px] font-black text-emerald-400 uppercase border-b border-white/10 pb-2">Edit Audit Log</h4>
-                            <p className="text-[10px] leading-relaxed">
-                                <span className="text-slate-400 font-bold uppercase mr-1">Officer:</span> 
-                                {r.updatedBy.firstName} {r.updatedBy.lastName}
-                            </p>
-                            <p className="text-[10px] leading-relaxed italic text-slate-300">"{r.lastEditAction || "Manual update"}"</p>
-                            <p className="text-[9px] text-slate-500 mt-2 font-mono">{new Date(r.updatedAt).toLocaleString()}</p>
-                          </div>
+                        <div className="absolute bottom-full right-0 mb-3 hidden group-hover:block w-64 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl z-50 text-left">
+                          <h4 className="text-[9px] font-black text-emerald-400 uppercase mb-2">
+                            Edit Audit Log
+                          </h4>
+                          <p className="text-[10px]">
+                            {r.updatedBy.firstName} {r.updatedBy.lastName}
+                          </p>
+                          <p className="text-[9px] opacity-60 mt-2 font-mono">
+                            {new Date(r.updatedAt).toLocaleString()}
+                          </p>
                         </div>
                       </div>
-                    ) : (
-                      <span className="text-[10px] font-bold text-slate-200 italic">No history</span>
                     )}
-                  </td>
-                  <td className="px-6 py-4 text-right">
                     <button
                       onClick={() => handleDelete(r._id)}
-                      disabled={loading}
-                      className="p-2.5 rounded-xl text-slate-300 hover:text-red-600 hover:bg-red-50 transition-all"
+                      className="p-1.5 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg"
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={16} />
                     </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          
-          {currentRecords.length === 0 && !loading && (
-            <div className="text-center py-20">
-              <Database size={48} className="mx-auto text-slate-100 mb-4" />
-              <p className="text-sm font-black text-slate-300 uppercase tracking-widest">No matching records found</p>
-            </div>
-          )}
         </div>
 
-        {/* PAGINATION FOOTER */}
-        <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+        {/* PAGINATION CONTROLS */}
+        <div className="bg-slate-50 px-8 py-4 border-t border-slate-100 flex items-center justify-between">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
             Page {currentPage} of {totalPages || 1}
-          </span>
-          <div className="flex gap-2">
+          </p>
+          <div className="flex items-center gap-2">
             <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              onClick={() => setCurrentPage(p => p - 1)}
-              className="p-2 bg-white border border-slate-200 rounded-xl disabled:opacity-20 hover:bg-slate-50 transition-colors shadow-sm"
+              className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-colors"
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={16} />
             </button>
+
+            <div className="flex gap-1">
+              {[...Array(totalPages)].map((_, i) => {
+                const pageNum = i + 1;
+                // Only show 5 pages around the current page if there are many
+                if (totalPages > 5 && Math.abs(pageNum - currentPage) > 2)
+                  return null;
+
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-8 h-8 rounded-lg text-[10px] font-black transition-all ${
+                      currentPage === pageNum
+                        ? "bg-[#b48222] text-white shadow-md"
+                        : "bg-white border border-slate-200 text-slate-400 hover:border-[#b48222] hover:text-[#b48222]"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+
             <button
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+              }
               disabled={currentPage === totalPages || totalPages === 0}
-              onClick={() => setCurrentPage(p => p + 1)}
-              className="p-2 bg-white border border-slate-200 rounded-xl disabled:opacity-20 hover:bg-slate-50 transition-colors shadow-sm"
+              className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-colors"
             >
-              <ChevronRight size={18} />
+              <ChevronRight size={16} />
             </button>
           </div>
         </div>
