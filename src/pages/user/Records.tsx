@@ -44,21 +44,24 @@ const RecordPage: React.FC = () => {
     dispatch(fetchRecords());
   }, [dispatch]);
 
-  // Filtered records based on search and court
+  // Filtered records based on searchTerm and courtFilter
   const filteredRecords = useMemo(() => {
     return records.filter((r) => {
       const matchesSearch =
         !searchTerm ||
         r.nameOfDeceased?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.causeNo?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Filter by the selected court ID
       const matchesCourt = !courtFilter || r.courtStation?._id === courtFilter;
+      
       return matchesSearch && matchesCourt;
     });
   }, [records, searchTerm, courtFilter]);
 
   const currentRecords = filteredRecords.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
+    currentPage * itemsPerPage
   );
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
 
@@ -69,7 +72,7 @@ const RecordPage: React.FC = () => {
         updateMultipleRecordsDateForwarded({
           ids: selectedIds,
           date: bulkDate,
-        }),
+        })
       ).unwrap();
       toast.success("Batch updated successfully");
       setSelectedIds([]);
@@ -77,6 +80,21 @@ const RecordPage: React.FC = () => {
     } catch (err: any) {
       toast.error(err);
     }
+  };
+
+  // Helper to handle court selection
+  const handleSelectCourt = (courtId: string, courtName: string) => {
+    setCourtFilter(courtId);
+    setCourtSearch(courtName);
+    setShowCourtDropdown(false);
+    setCurrentPage(1); // Reset to page 1 on filter
+  };
+
+  const handleClearCourt = () => {
+    setCourtFilter("");
+    setCourtSearch("");
+    setShowCourtDropdown(false);
+    setCurrentPage(1);
   };
 
   return (
@@ -90,7 +108,7 @@ const RecordPage: React.FC = () => {
             Probate <span className="text-[#C8A239]">Registry</span>
           </h1>
           <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.3em] mt-1 flex items-center gap-2">
-            <span className="w-6 h-[2px] bg-[#C8A239]"></span>
+            <span className="w-6 h-[2px] bg-[#C8A239]" />
             Lead Time Management Portal
           </p>
         </div>
@@ -100,17 +118,13 @@ const RecordPage: React.FC = () => {
             <p className="text-[10px] font-black text-slate-400 uppercase mb-1">
               Total Records
             </p>
-            <p className="text-xl font-black text-[#004832]">
-              {filteredRecords.length}
-            </p>
+            <p className="text-xl font-black text-[#004832]">{filteredRecords.length}</p>
           </div>
           <div className="text-center px-4">
             <p className="text-[10px] font-black text-slate-400 uppercase mb-1">
               Selected
             </p>
-            <p className="text-xl font-black text-[#C8A239]">
-              {selectedIds.length}
-            </p>
+            <p className="text-xl font-black text-[#C8A239]">{selectedIds.length}</p>
           </div>
         </div>
       </div>
@@ -127,7 +141,9 @@ const RecordPage: React.FC = () => {
           {/* SEARCH */}
           <div className="relative flex-1 min-w-[320px]">
             <Search
-              className={`absolute left-4 top-1/2 -translate-y-1/2 ${selectedIds.length > 0 ? "text-white/40" : "text-slate-400"}`}
+              className={`absolute left-4 top-1/2 -translate-y-1/2 ${
+                selectedIds.length > 0 ? "text-white/40" : "text-slate-400"
+              }`}
               size={18}
             />
             <input
@@ -139,14 +155,19 @@ const RecordPage: React.FC = () => {
                   : "bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-[#004832]/5"
               }`}
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
             />
           </div>
 
           {/* COURT DROPDOWN */}
           <div className="relative w-full lg:w-80">
             <div
-              className={`absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none ${selectedIds.length > 0 ? "text-white/40" : "text-slate-400"}`}
+              className={`absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none ${
+                selectedIds.length > 0 ? "text-white/40" : "text-slate-400"
+              }`}
             >
               <MapPin size={16} />
             </div>
@@ -160,18 +181,18 @@ const RecordPage: React.FC = () => {
               }`}
               value={courtSearch}
               onFocus={() => setShowCourtDropdown(true)}
-              onBlur={() => setTimeout(() => setShowCourtDropdown(false), 200)}
+              onBlur={() => setShowCourtDropdown(false)}
               onChange={(e) => {
                 setCourtSearch(e.target.value);
+                setCourtFilter(""); // Clear ID filter while user is typing a new search
                 setShowCourtDropdown(true);
               }}
             />
-            {courtFilter && (
+            
+            {(courtFilter || courtSearch) && (
               <button
-                onClick={() => {
-                  setCourtFilter("");
-                  setCourtSearch("");
-                }}
+                type="button"
+                onClick={handleClearCourt}
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-red-50 hover:text-red-500 text-slate-400 rounded-lg transition-all"
               >
                 <XCircle size={16} />
@@ -182,10 +203,9 @@ const RecordPage: React.FC = () => {
               <div className="absolute z-[100] mt-3 w-full bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
                 <div className="max-h-72 overflow-y-auto p-2">
                   <div
-                    onClick={() => {
-                      setCourtFilter("");
-                      setCourtSearch("");
-                      setShowCourtDropdown(false);
+                    onMouseDown={(e) => {
+                      e.preventDefault(); // Prevents input onBlur from firing before this selection
+                      handleClearCourt();
                     }}
                     className="px-4 py-3 text-[10px] font-black uppercase text-slate-400 hover:bg-slate-50 rounded-xl cursor-pointer tracking-widest"
                   >
@@ -193,15 +213,14 @@ const RecordPage: React.FC = () => {
                   </div>
                   {courts
                     .filter((c) =>
-                      c.name.toLowerCase().includes(courtSearch.toLowerCase()),
+                      c.name.toLowerCase().includes(courtSearch.toLowerCase())
                     )
                     .map((c) => (
                       <div
                         key={c._id}
-                        onClick={() => {
-                          setCourtFilter(c._id);
-                          setCourtSearch(c.name);
-                          setShowCourtDropdown(false);
+                        onMouseDown={(e) => {
+                          e.preventDefault(); // Prevents input onBlur from firing before this selection
+                          handleSelectCourt(c._id, c.name);
                         }}
                         className="px-4 py-3 hover:bg-[#004832] hover:text-white rounded-xl cursor-pointer text-sm font-bold transition-all mb-1"
                       >
@@ -275,10 +294,7 @@ const RecordPage: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {currentRecords.map((r) => (
-                <tr
-                  key={r._id}
-                  className="hover:bg-[#F9F9F7] transition-all group/row"
-                >
+                <tr key={r._id} className="hover:bg-[#F9F9F7] transition-all group/row">
                   <td className="p-6 text-center">
                     <input
                       type="checkbox"
@@ -288,7 +304,7 @@ const RecordPage: React.FC = () => {
                         setSelectedIds((prev) =>
                           prev.includes(r._id)
                             ? prev.filter((id) => id !== r._id)
-                            : [...prev, r._id],
+                            : [...prev, r._id]
                         )
                       }
                     />
@@ -329,9 +345,7 @@ const RecordPage: React.FC = () => {
                     {r.dateForwardedToGP ? (
                       <span className="flex items-center gap-2 text-emerald-600 font-bold text-xs">
                         <CheckCircle2 size={14} />{" "}
-                        {new Date(r.dateForwardedToGP).toLocaleDateString(
-                          "en-KE",
-                        )}
+                        {new Date(r.dateForwardedToGP).toLocaleDateString("en-KE")}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-2 bg-amber-50 text-amber-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase italic">
@@ -356,10 +370,8 @@ const RecordPage: React.FC = () => {
                     </span>
                   </td>
 
-                  {/* ACTIONS */}
                   <td className="p-6 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {/* EDIT BUTTON */}
                       <button
                         onClick={() => {
                           setSelectedRecord(r);
@@ -370,7 +382,6 @@ const RecordPage: React.FC = () => {
                         <Edit3 size={16} />
                       </button>
 
-                      {/* AUDIT INFO */}
                       <div className="relative group/audit">
                         <button className="p-3 bg-white text-slate-400 hover:text-slate-800 rounded-2xl transition-all border border-slate-100">
                           <Info size={16} />
@@ -396,17 +407,13 @@ const RecordPage: React.FC = () => {
                                 <span className="text-slate-500 uppercase font-black text-[8px] block mb-1">
                                   Date
                                 </span>
-                                {new Date(r.updatedAt).toLocaleDateString(
-                                  "en-KE",
-                                )}
+                                {new Date(r.updatedAt).toLocaleDateString("en-KE")}
                               </div>
                               <div className="text-right">
                                 <span className="text-slate-500 uppercase font-black text-[8px] block mb-1">
                                   Time
                                 </span>
-                                {new Date(r.updatedAt).toLocaleTimeString(
-                                  "en-KE",
-                                )}
+                                {new Date(r.updatedAt).toLocaleTimeString("en-KE")}
                               </div>
                             </div>
                           </div>
@@ -421,60 +428,36 @@ const RecordPage: React.FC = () => {
         </div>
 
         {/* PAGINATION */}
-        <div className="p-8 bg-slate-50/50 flex items-center justify-between">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">
-            Showing Page {currentPage} of {totalPages}
-          </p>
-          <div className="flex gap-4">
-            <button
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage((p) => p - 1)}
-              className="p-3 bg-white border border-slate-200 rounded-2xl disabled:opacity-30 hover:shadow-md transition-all"
-            >
-              <ChevronLeft size={20} />
-            </button>
-            <button
-              disabled={currentPage === totalPages}
-              onClick={() => setCurrentPage((p) => p + 1)}
-              className="p-3 bg-white border border-slate-200 rounded-2xl disabled:opacity-30 hover:shadow-md transition-all"
-            >
-              <ChevronRight size={20} />
-            </button>
-          </div>
+        <div className="flex items-center justify-end gap-4 p-6">
+          <button
+            className="p-2 rounded-full bg-slate-50 border border-slate-200 hover:bg-slate-100 disabled:opacity-50"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <span className="text-sm font-bold text-slate-500">
+            Page {currentPage} of {totalPages || 1}
+          </span>
+          <button
+            className="p-2 rounded-full bg-slate-50 border border-slate-200 hover:bg-slate-100 disabled:opacity-50"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages || totalPages === 0}
+          >
+            <ChevronRight size={18} />
+          </button>
         </div>
       </div>
 
       {/* EDIT MODAL */}
       {editMode && selectedRecord && (
-        <div className="fixed inset-0 bg-[#001a12]/90 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[3rem] w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.4)] animate-in zoom-in duration-500">
-            <div className="p-10 border-b flex justify-between items-center bg-slate-50/30">
-              <div>
-                <span className="text-[10px] font-black text-[#C8A239] uppercase tracking-[0.3em] block mb-2">
-                  Editor Mode
-                </span>
-                <h3 className="text-2xl font-black text-[#004832] uppercase tracking-tighter">
-                  {selectedRecord.causeNo}
-                </h3>
-              </div>
-              <button
-                onClick={() => setEditMode(false)}
-                className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 text-slate-400 hover:text-red-500 transition-all"
-              >
-                <XCircle size={28} />
-              </button>
-            </div>
-            <div className="p-12 overflow-y-auto max-h-[calc(90vh-160px)]">
-              <EditRecord
-                record={selectedRecord}
-                onClose={() => {
-                  setEditMode(false);
-                  dispatch(fetchRecords());
-                }}
-              />
-            </div>
-          </div>
-        </div>
+        <EditRecord
+          record={selectedRecord}
+          onClose={() => {
+            setSelectedRecord(null);
+            setEditMode(false);
+          }}
+        />
       )}
     </div>
   );
