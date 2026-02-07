@@ -32,9 +32,8 @@ const AdminRecordsPage = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkDate, setBulkDate] = useState("");
 
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 15; // Set how many rows you want per page
+  const itemsPerPage = 15;
 
   /* =======================
       LOAD DATA
@@ -59,14 +58,12 @@ const AdminRecordsPage = () => {
     });
   }, [records, searchTerm, courtFilter]);
 
-  // Logic for slicing the data
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
   const paginatedRecords = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredRecords.slice(start, start + itemsPerPage);
   }, [filteredRecords, currentPage]);
 
-  // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, courtFilter]);
@@ -75,11 +72,7 @@ const AdminRecordsPage = () => {
       HANDLERS
   ======================== */
   const handleDelete = (id: string) => {
-    if (
-      window.confirm(
-        "Permanently delete this record? This action is irreversible.",
-      )
-    ) {
+    if (window.confirm("Permanently delete this record? This action is irreversible.")) {
       dispatch(deleteRecord(id));
       toast.success("Record purged from system");
     }
@@ -123,12 +116,8 @@ const AdminRecordsPage = () => {
             <Calendar size={20} />
           </div>
           <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase">
-              Total Listed
-            </p>
-            <p className="text-xl font-black text-slate-800">
-              {filteredRecords.length}
-            </p>
+            <p className="text-[10px] font-black text-slate-400 uppercase">Total Listed</p>
+            <p className="text-xl font-black text-slate-800">{filteredRecords.length}</p>
           </div>
         </div>
       </div>
@@ -136,10 +125,7 @@ const AdminRecordsPage = () => {
       {/* FILTER + BULK BAR */}
       <div className="flex flex-wrap gap-4 items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
         <div className="relative flex-1 min-w-[300px]">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            size={16}
-          />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input
             type="text"
             placeholder="Search Deceased or Cause No..."
@@ -156,35 +142,21 @@ const AdminRecordsPage = () => {
         >
           <option value="">All Court Stations</option>
           {courts.map((c) => (
-            <option key={c._id} value={c._id}>
-              {c.name}
-            </option>
+            <option key={c._id} value={c._id}>{c.name}</option>
           ))}
         </select>
 
         {selectedIds.length > 0 && (
           <div className="flex items-center gap-3 bg-slate-900 text-white px-4 py-1.5 rounded-xl animate-in zoom-in duration-300">
-            <span className="text-[10px] font-black uppercase">
-              {selectedIds.length} Selected
-            </span>
+            <span className="text-[10px] font-black uppercase">{selectedIds.length} Selected</span>
             <input
               type="date"
               className="bg-slate-800 text-white text-xs rounded-lg px-2 py-1 border-none"
               value={bulkDate}
               onChange={(e) => setBulkDate(e.target.value)}
             />
-            <button
-              onClick={handleBulkUpdate}
-              className="bg-emerald-600 text-[10px] font-black uppercase px-3 py-2 rounded-lg"
-            >
-              Forward to GP
-            </button>
-            <button
-              onClick={() => setSelectedIds([])}
-              className="text-slate-400 hover:text-white"
-            >
-              <XCircle size={18} />
-            </button>
+            <button onClick={handleBulkUpdate} className="bg-emerald-600 text-[10px] font-black uppercase px-3 py-2 rounded-lg">Forward to GP</button>
+            <button onClick={() => setSelectedIds([])} className="text-slate-400 hover:text-white"><XCircle size={18} /></button>
           </div>
         )}
       </div>
@@ -199,11 +171,7 @@ const AdminRecordsPage = () => {
                   <input
                     type="checkbox"
                     className="accent-emerald-600"
-                    onChange={(e) =>
-                      e.target.checked
-                        ? setSelectedIds(paginatedRecords.map((r) => r._id))
-                        : setSelectedIds([])
-                    }
+                    onChange={(e) => e.target.checked ? setSelectedIds(paginatedRecords.map((r) => r._id)) : setSelectedIds([])}
                   />
                 </th>
                 <th className="px-4 py-5 text-left">Court Station</th>
@@ -221,97 +189,72 @@ const AdminRecordsPage = () => {
 
             <tbody className="divide-y divide-slate-50">
               {paginatedRecords.map((r) => (
-                <tr
-                  key={r._id}
-                  className="group hover:bg-slate-50/50 transition-all"
-                >
+                <tr key={r._id} className="group hover:bg-slate-50/50 transition-all">
                   <td className="px-4 py-4 text-center">
                     <input
                       type="checkbox"
                       className="accent-emerald-600"
                       checked={selectedIds.includes(r._id)}
-                      onChange={() =>
-                        setSelectedIds((prev) =>
-                          prev.includes(r._id)
-                            ? prev.filter((id) => id !== r._id)
-                            : [...prev, r._id],
-                        )
-                      }
+                      onChange={() => setSelectedIds((prev) => prev.includes(r._id) ? prev.filter((id) => id !== r._id) : [...prev, r._id])}
                     />
                   </td>
                   <td className="px-4 py-4">
-                    <span className="text-[10px] font-black text-slate-700 bg-slate-100 px-2 py-0.5 rounded uppercase">
-                      {r.courtStation?.name}
-                    </span>
+                    <span className="text-[10px] font-black text-slate-700 bg-slate-100 px-2 py-0.5 rounded uppercase">{r.courtStation?.name}</span>
                   </td>
-                  <td className="px-4 py-4 text-xs font-mono font-bold">
-                    {r.causeNo}
-                  </td>
-                  <td className="px-4 py-4 text-xs font-black uppercase text-slate-600">
-                    {r.nameOfDeceased}
-                  </td>
-                  <td className="px-4 py-4 text-[11px] text-slate-500">
-                    {new Date(r.dateReceived).toLocaleDateString("en-KE")}
-                  </td>
-                  <td className="px-4 py-4 text-[11px] text-slate-500">
-                    {r.dateOfReceipt
-                      ? new Date(r.dateOfReceipt).toLocaleDateString("en-KE")
-                      : "—"}
-                  </td>
+                  <td className="px-4 py-4 text-xs font-mono font-bold">{r.causeNo}</td>
+                  <td className="px-4 py-4 text-xs font-black uppercase text-slate-600">{r.nameOfDeceased}</td>
+                  <td className="px-4 py-4 text-[11px] text-slate-500">{new Date(r.dateReceived).toLocaleDateString("en-KE")}</td>
+                  <td className="px-4 py-4 text-[11px] text-slate-500">{r.dateOfReceipt ? new Date(r.dateOfReceipt).toLocaleDateString("en-KE") : "—"}</td>
+                  
+                  {/* UPDATE: RECEIVING LEAD COLOR LOGIC (Threshold > 30) */}
                   <td className="px-4 py-4 text-center">
                     <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${Number(r.receivingLeadTime) > 5 ? "bg-red-50 text-red-600" : "bg-slate-100 text-slate-500"}`}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        (r.receivingLeadTime ?? 0) > 30 
+                          ? "bg-red-50 text-red-600" 
+                          : "bg-slate-100 text-slate-500"
+                      }`}
                     >
                       {r.receivingLeadTime ?? 0} Days
                     </span>
                   </td>
+
                   <td className="px-4 py-4 text-[11px] text-slate-500">
-                    {r.dateForwardedToGP
-                      ? new Date(r.dateForwardedToGP).toLocaleDateString(
-                          "en-KE",
-                        )
-                      : "Pending"}
+                    {r.dateForwardedToGP ? new Date(r.dateForwardedToGP).toLocaleDateString("en-KE") : "Pending"}
                   </td>
-                  <td className="px-4 py-4 text-center text-[10px] font-bold text-slate-400">
-                    {r.forwardingLeadTime ?? "—"}
-                  </td>
-                  <td className="px-4 py-4">
+
+                  {/* UPDATE: FORWARDING LEAD COLOR LOGIC (Threshold > 30) */}
+                  <td className="px-4 py-4 text-center">
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase flex items-center gap-1 w-fit ${r.form60Compliance === "Approved" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        (r.forwardingLeadTime ?? 0) > 30
+                          ? "bg-red-50 text-red-600"
+                          : "bg-slate-50 text-slate-400"
+                      }`}
                     >
-                      {r.form60Compliance === "Approved" ? (
-                        <CheckCircle2 size={10} />
-                      ) : (
-                        <XCircle size={10} />
-                      )}
+                      {r.forwardingLeadTime ?? "—"}
+                    </span>
+                  </td>
+
+                  <td className="px-4 py-4">
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase flex items-center gap-1 w-fit ${r.form60Compliance === "Approved" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                      {r.form60Compliance === "Approved" ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
                       {r.form60Compliance}
                     </span>
                   </td>
+
                   <td className="px-4 py-4 text-right">
                     {r.updatedBy && (
                       <div className="relative inline-block group">
-                        <button className="p-1.5 text-slate-300 hover:text-emerald-600">
-                          <Info size={16} />
-                        </button>
+                        <button className="p-1.5 text-slate-300 hover:text-emerald-600"><Info size={16} /></button>
                         <div className="absolute bottom-full right-0 mb-3 hidden group-hover:block w-64 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl z-50 text-left">
-                          <h4 className="text-[9px] font-black text-emerald-400 uppercase mb-2">
-                            Edit Audit Log
-                          </h4>
-                          <p className="text-[10px]">
-                            {r.updatedBy.firstName} {r.updatedBy.lastName}
-                          </p>
-                          <p className="text-[9px] opacity-60 mt-2 font-mono">
-                            {new Date(r.updatedAt).toLocaleString()}
-                          </p>
+                          <h4 className="text-[9px] font-black text-emerald-400 uppercase mb-2">Edit Audit Log</h4>
+                          <p className="text-[10px]">{r.updatedBy.firstName} {r.updatedBy.lastName}</p>
+                          <p className="text-[9px] opacity-60 mt-2 font-mono">{new Date(r.updatedAt).toLocaleString()}</p>
                         </div>
                       </div>
                     )}
-                    <button
-                      onClick={() => handleDelete(r._id)}
-                      className="p-1.5 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    <button onClick={() => handleDelete(r._id)} className="p-1.5 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button>
                   </td>
                 </tr>
               ))}
@@ -336,10 +279,7 @@ const AdminRecordsPage = () => {
             <div className="flex gap-1">
               {[...Array(totalPages)].map((_, i) => {
                 const pageNum = i + 1;
-                // Only show 5 pages around the current page if there are many
-                if (totalPages > 5 && Math.abs(pageNum - currentPage) > 2)
-                  return null;
-
+                if (totalPages > 5 && Math.abs(pageNum - currentPage) > 2) return null;
                 return (
                   <button
                     key={pageNum}
@@ -357,9 +297,7 @@ const AdminRecordsPage = () => {
             </div>
 
             <button
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-              }
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages || totalPages === 0}
               className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-colors"
             >
