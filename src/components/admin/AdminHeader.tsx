@@ -1,10 +1,29 @@
 import React from "react";
+import { useAppDispatch } from "../../store/hooks"; // Ensure path is correct for your hooks
+import { logout } from "../../store/slices/authSlice";
+import { Loader2, LogOut } from "lucide-react";
 
 interface AdminHeaderProps {
   userName: string;
 }
 
 export const AdminHeader: React.FC<AdminHeaderProps> = ({ userName }) => {
+  const dispatch = useAppDispatch();
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await dispatch(logout()).unwrap();
+      // Most routers will automatically redirect because the private route 
+      // detects isAuthenticated is now false.
+    } catch (error) {
+      console.error("Logout failed:", error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
   return (
     <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 h-20 flex justify-between items-center shadow-sm">
       <div className="flex flex-col">
@@ -25,8 +44,17 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({ userName }) => {
 
         <div className="h-8 w-[1px] bg-slate-200" />
 
-        <button className="text-[10px] font-black text-red-400 hover:text-red-600 uppercase tracking-widest transition-colors border border-red-100 px-4 py-2 rounded-xl hover:bg-red-50">
-          Sign Out
+        <button 
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          className="group flex items-center gap-2 text-[10px] font-black text-red-400 hover:text-red-600 uppercase tracking-widest transition-all border border-red-100 px-4 py-2 rounded-xl hover:bg-red-50 disabled:opacity-50"
+        >
+          {isLoggingOut ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <LogOut size={14} className="group-hover:translate-x-1 transition-transform" />
+          )}
+          {isLoggingOut ? "Processing..." : "Sign Out"}
         </button>
       </div>
     </header>
