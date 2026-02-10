@@ -13,6 +13,17 @@ import type {
 } from "../../store/slices/recordsSlice";
 import { updateRecord } from "../../store/slices/recordsSlice";
 import { fetchCourts } from "../../store/slices/courtsSlice";
+import { 
+  Gavel, 
+  Calendar, 
+  User, 
+  MapPin, 
+  CheckCircle, 
+  AlertTriangle, 
+  Clock, 
+  FileText,
+  XCircle
+} from "lucide-react";
 import toast from "react-hot-toast";
 
 interface EditRecordProps {
@@ -107,70 +118,79 @@ const EditRecord: React.FC<EditRecordProps> = ({ record, onClose }) => {
       .catch((err: string) => toast.error(err));
   };
 
-  const labelStyle =
-    "block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1 ml-1";
-  const inputStyle =
-    "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#c2a336] focus:border-transparent transition-all outline-none bg-white";
+  const labelStyle = "flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2";
+  const inputStyle = "w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 focus:bg-white focus:ring-2 focus:ring-[#c2a336]/20 focus:border-[#c2a336] transition-all outline-none";
 
   return (
-    <form onSubmit={handleSubmit} className="p-1">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* SECTION 1: CASE INFORMATION */}
-        <div className="space-y-4">
-          <h3 className="text-xs font-bold text-[#1a3a32] border-b pb-2 uppercase tracking-widest">
-            Case Information
-          </h3>
-
-          <div>
-            <label className={labelStyle}>Cause Number</label>
-            <input
-              type="text"
-              name="causeNo"
-              value={formData.causeNo}
-              onChange={handleChange}
-              placeholder="e.g. HC/123/2023"
-              className={inputStyle}
-            />
+    <form onSubmit={handleSubmit} className="p-2">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        {/* LEFT COLUMN: LEGAL CORE */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+            <div className="p-1.5 bg-[#1a3a32] rounded-lg">
+                <Gavel size={14} className="text-[#c2a336]" />
+            </div>
+            <h3 className="text-xs font-black text-[#1a3a32] uppercase tracking-[0.2em]">
+              Case Identifiers
+            </h3>
           </div>
 
-          <div>
-            <label className={labelStyle}>Name of Deceased</label>
-            <input
-              type="text"
-              name="nameOfDeceased"
-              value={formData.nameOfDeceased}
-              onChange={handleChange}
-              className={inputStyle}
-            />
-          </div>
+          <div className="grid gap-5">
+            <div>
+              <label className={labelStyle}><FileText size={12} /> Cause Number</label>
+              <input
+                type="text"
+                name="causeNo"
+                value={formData.causeNo}
+                onChange={handleChange}
+                placeholder="e.g. HC/123/2023"
+                className={inputStyle}
+              />
+            </div>
 
-          <div>
-            <label className={labelStyle}>Court Station</label>
-            <select
-              name="courtId"
-              value={formData.courtId}
-              onChange={handleChange}
-              className={inputStyle}
-            >
-              <option value="">Select Court</option>
-              {courts.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <div>
+              <label className={labelStyle}><User size={12} /> Name of Deceased</label>
+              <input
+                type="text"
+                name="nameOfDeceased"
+                value={formData.nameOfDeceased}
+                onChange={handleChange}
+                className={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label className={labelStyle}><MapPin size={12} /> Court Station</label>
+              <select
+                name="courtId"
+                value={formData.courtId}
+                onChange={handleChange}
+                className={inputStyle}
+              >
+                <option value="">Select Station...</option>
+                {courts.map((c) => (
+                  <option key={c._id} value={c._id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
-        {/* SECTION 2: TIMELINES & COMPLIANCE */}
-        <div className="space-y-4">
-          <h3 className="text-xs font-bold text-[#1a3a32] border-b pb-2 uppercase tracking-widest">
-            Processing Details
-          </h3>
+        {/* RIGHT COLUMN: TIMELINE & STATUS */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+            <div className="p-1.5 bg-slate-100 rounded-lg">
+                <Clock size={14} className="text-slate-500" />
+            </div>
+            <h3 className="text-xs font-black text-slate-500 uppercase tracking-[0.2em]">
+              Registry Processing
+            </h3>
+          </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelStyle}>Date Received</label>
+              <label className={labelStyle}><Calendar size={12} /> Date Received</label>
               <input
                 type="date"
                 name="dateReceived"
@@ -180,7 +200,7 @@ const EditRecord: React.FC<EditRecordProps> = ({ record, onClose }) => {
               />
             </div>
             <div>
-              <label className={labelStyle}>Date of Receipt</label>
+              <label className={labelStyle}><Calendar size={12} /> Date of Receipt</label>
               <input
                 type="date"
                 name="dateOfReceipt"
@@ -192,7 +212,7 @@ const EditRecord: React.FC<EditRecordProps> = ({ record, onClose }) => {
           </div>
 
           <div>
-            <label className={labelStyle}>Forwarded to GP</label>
+            <label className={labelStyle}><Calendar size={12} /> Forwarded to GP</label>
             <input
               type="date"
               name="dateForwardedToGP"
@@ -202,22 +222,27 @@ const EditRecord: React.FC<EditRecordProps> = ({ record, onClose }) => {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelStyle}>Compliance</label>
-              <select
-                name="form60Compliance"
-                value={formData.form60Compliance}
-                onChange={handleChange}
-                className={`${inputStyle} ${
-                  formData.form60Compliance === "Rejected"
-                    ? "text-red-600 font-semibold"
-                    : "text-green-600 font-semibold"
-                }`}
-              >
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-              </select>
+              <div className="relative">
+                <select
+                  name="form60Compliance"
+                  value={formData.form60Compliance}
+                  onChange={handleChange}
+                  className={`${inputStyle} pr-10 ${
+                    formData.form60Compliance === "Rejected"
+                      ? "bg-rose-50 text-rose-700 border-rose-200"
+                      : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  }`}
+                >
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                   {formData.form60Compliance === "Rejected" ? <XCircle size={16} className="text-rose-400" /> : <CheckCircle size={16} className="text-emerald-400" />}
+                </div>
+              </div>
             </div>
             <div>
               <label className={labelStyle}>GP Status</label>
@@ -235,42 +260,43 @@ const EditRecord: React.FC<EditRecordProps> = ({ record, onClose }) => {
         </div>
       </div>
 
-      {/* FULL WIDTH REJECTION REASON */}
+      {/* FULL WIDTH REJECTION SECTION */}
       {formData.form60Compliance === "Rejected" && (
-        <div className="mt-6 animate-in fade-in slide-in-from-top-2 duration-300">
-          <label className={`${labelStyle} text-red-600`}>
-            Rejection Reason
-          </label>
+        <div className="mt-8 p-6 bg-rose-50 border border-rose-100 rounded-2xl animate-in zoom-in-95 duration-200">
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle size={18} className="text-rose-500" />
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-rose-600">Rejection Protocol Required</h4>
+          </div>
           <select
             name="rejectionReason"
             value={formData.rejectionReason}
             onChange={handleChange}
-            className={`${inputStyle} border-red-200 bg-red-50 focus:ring-red-500`}
+            className="w-full bg-white border border-rose-200 rounded-xl px-4 py-3 text-sm font-medium text-rose-900 focus:ring-2 focus:ring-rose-500 transition-all outline-none"
           >
-            <option value="">Select a reason...</option>
+            <option value="">Select the primary reason for rejection...</option>
             {rejectionReasons.map((reason, idx) => (
-              <option key={idx} value={reason}>
-                {reason}
-              </option>
+              <option key={idx} value={reason}>{reason}</option>
             ))}
           </select>
+          <p className="mt-3 text-[10px] text-rose-400 italic">This reason will be logged in the public ledger for station reference.</p>
         </div>
       )}
 
       {/* ACTIONS */}
-      <div className="flex justify-end items-center gap-3 mt-8 pt-4 border-t border-gray-100">
+      <div className="flex justify-between items-center mt-10 pt-6 border-t border-slate-100">
         <button
           type="button"
           onClick={onClose}
-          className="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-gray-600 transition-colors"
+          className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-rose-500 transition-all"
         >
-          Discard
+          Cancel Changes
         </button>
         <button
           type="submit"
-          className="bg-[#1a3a32] text-white text-xs font-bold uppercase tracking-widest px-6 py-3 rounded-lg hover:bg-[#142d26] shadow-md active:scale-95 transition-all"
+          className="flex items-center gap-3 bg-[#1a3a32] text-[#c2a336] text-[10px] font-black uppercase tracking-[0.2em] px-10 py-4 rounded-xl hover:bg-[#c2a336] hover:text-[#1a3a32] shadow-xl shadow-slate-200 transition-all active:scale-95"
         >
-          Save Update
+          <FileText size={16} />
+          Commit Update
         </button>
       </div>
     </form>

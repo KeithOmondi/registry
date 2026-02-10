@@ -20,6 +20,7 @@ import {
   Info,
   MapPin,
   Send,
+  AlertCircle,
 } from "lucide-react";
 
 const RecordPage: React.FC = () => {
@@ -94,9 +95,29 @@ const RecordPage: React.FC = () => {
     setCurrentPage(1);
   };
 
+  const handleEditClick = (record: RecordType) => {
+    setSelectedRecord(record);
+    setEditMode(true);
+  };
+
   return (
-    <div className="p-4 md:p-8 bg-[#F9F9F7] min-h-screen font-sans">
+    <div className="relative p-4 md:p-8 bg-[#F9F9F7] min-h-screen font-sans">
       <Toaster position="top-right" />
+
+      {/* MODAL OVERLAY */}
+      {editMode && selectedRecord && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white rounded-[2.5rem] shadow-2xl">
+            <EditRecord 
+              record={selectedRecord} 
+              onClose={() => { 
+                setSelectedRecord(null); 
+                setEditMode(false); 
+              }} 
+            />
+          </div>
+        </div>
+      )}
 
       {/* HEADER */}
       <div className="max-w-[1800px] mx-auto mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -144,7 +165,7 @@ const RecordPage: React.FC = () => {
               className={`w-full pl-12 pr-10 py-3 text-sm font-bold rounded-xl outline-none cursor-pointer transition-all ${selectedIds.length > 0 ? "bg-white/10 text-white placeholder:text-white/30 focus:bg-white/20" : "bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-[#004832]/5"}`}
               value={courtSearch}
               onFocus={() => setShowCourtDropdown(true)}
-              onBlur={() => setShowCourtDropdown(false)}
+              onBlur={() => setTimeout(() => setShowCourtDropdown(false), 200)}
               onChange={(e) => { setCourtSearch(e.target.value); setCourtFilter(""); setShowCourtDropdown(true); }}
             />
             {(courtFilter || courtSearch) && (
@@ -192,7 +213,6 @@ const RecordPage: React.FC = () => {
                 <th className="p-6">Cause No.</th>
                 <th className="p-6">Name of Deceased</th>
                 <th className="p-6">Date Received (PR)</th>
-                <th className="p-6">E-Citizen Date</th>
                 <th className="p-6 text-center">Rec. Lead Time</th>
                 <th className="p-6">Forwarded to GP</th>
                 <th className="p-6 text-center">Fwd. Lead Time</th>
@@ -215,17 +235,9 @@ const RecordPage: React.FC = () => {
                   <td className="p-6"><code className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[11px] font-bold">{r.causeNo}</code></td>
                   <td className="p-6 font-black uppercase text-slate-800 tracking-tight">{r.nameOfDeceased}</td>
                   <td className="p-6 font-bold text-slate-500 text-xs">{new Date(r.dateReceived).toLocaleDateString("en-KE")}</td>
-                  <td className="p-6 font-bold text-slate-400 text-xs">{r.dateOfReceipt ? new Date(r.dateOfReceipt).toLocaleDateString("en-KE") : "—"}</td>
                   
-                  {/* UPDATE: RECEIVING LEAD TIME COLOR LOGIC */}
                   <td className="p-6 text-center">
-                    <span
-                      className={`px-3 py-1 rounded-full font-black text-[10px] ${
-                        (r.receivingLeadTime ?? 0) > 30
-                          ? "bg-red-50 text-red-600 border border-red-100"
-                          : "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                      }`}
-                    >
+                    <span className={`px-3 py-1 rounded-full font-black text-[10px] ${(r.receivingLeadTime ?? 0) > 30 ? "bg-red-50 text-red-600 border border-red-100" : "bg-emerald-50 text-emerald-600 border border-emerald-100"}`}>
                       {r.receivingLeadTime ?? 0} Days
                     </span>
                   </td>
@@ -238,28 +250,39 @@ const RecordPage: React.FC = () => {
                     )}
                   </td>
 
-                  {/* UPDATE: FORWARDING LEAD TIME COLOR LOGIC */}
                   <td className="p-6 text-center">
-                    <span 
-                      className={`px-3 py-1 rounded-full font-black text-[10px] ${
-                        (r.forwardingLeadTime ?? 0) > 30 
-                          ? "bg-red-50 text-red-600 border border-red-100" 
-                          : "bg-slate-50 text-slate-400"
-                      }`}
-                    >
+                    <span className={`px-3 py-1 rounded-full font-black text-[10px] ${(r.forwardingLeadTime ?? 0) > 30 ? "bg-red-50 text-red-600 border border-red-100" : "bg-slate-50 text-slate-400"}`}>
                       {r.forwardingLeadTime ?? "—"} {r.forwardingLeadTime ? "Days" : ""}
                     </span>
                   </td>
 
+                  {/* COMPLIANCE COLUMN WITH REJECTION REASON */}
                   <td className="p-6">
-                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${r.form60Compliance === "Approved" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-                      {r.form60Compliance}
-                    </span>
+                    <div className="relative group/reason flex items-center gap-2">
+                      <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase flex items-center gap-1.5 ${r.form60Compliance === "Approved" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                        {r.form60Compliance === "Approved" ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
+                        {r.form60Compliance}
+                      </span>
+                      
+                      {r.form60Compliance !== "Approved" && r.rejectionReason && (
+                        <div className="relative">
+                          <AlertCircle size={14} className="text-red-400 cursor-help" />
+                          {/* Tooltip for Rejection Reason */}
+                          <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover/reason:block w-48 bg-slate-900 text-white text-[10px] p-3 rounded-xl shadow-xl z-[100]">
+                            <p className="font-black text-[#C8A239] uppercase mb-1 tracking-widest">Rejection Reason</p>
+                            <p className="font-medium text-slate-300 leading-relaxed">{r.rejectionReason}</p>
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-900" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </td>
 
                   <td className="p-6 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => { setSelectedRecord(r); setEditMode(true); }} className="p-3 bg-white hover:bg-[#004832] text-[#004832] hover:text-white rounded-2xl transition-all shadow-sm border border-slate-100"><Edit3 size={16} /></button>
+                      <button onClick={() => handleEditClick(r)} className="p-3 bg-white hover:bg-[#004832] text-[#004832] hover:text-white rounded-2xl transition-all shadow-sm border border-slate-100">
+                        <Edit3 size={16} />
+                      </button>
                       <div className="relative group/audit">
                         <button className="p-3 bg-white text-slate-400 hover:text-slate-800 rounded-2xl transition-all border border-slate-100"><Info size={16} /></button>
                         <div className="absolute bottom-full right-0 mb-4 hidden group-hover/audit:block w-72 bg-[#1a1a1a] text-white p-5 rounded-[2rem] shadow-2xl z-[150] border border-white/10 backdrop-blur-md">
@@ -291,10 +314,6 @@ const RecordPage: React.FC = () => {
           <button className="p-2 rounded-full bg-slate-50 border border-slate-200 hover:bg-slate-100 disabled:opacity-50" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0}><ChevronRight size={18} /></button>
         </div>
       </div>
-
-      {editMode && selectedRecord && (
-        <EditRecord record={selectedRecord} onClose={() => { setSelectedRecord(null); setEditMode(false); }} />
-      )}
     </div>
   );
 };
