@@ -1,5 +1,10 @@
 import { useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { Toaster } from "react-hot-toast";
 
@@ -7,7 +12,7 @@ import { Toaster } from "react-hot-toast";
 import type { RootState, AppDispatch } from "./store/store";
 
 import { refreshSession } from "./store/slices/authSlice";
-import { fetchMyProfile } from "./store/slices/userSlice"; 
+import { fetchMyProfile } from "./store/slices/userSlice";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 import { UserLayout } from "./components/user/UserLayout";
 import { AdminLayout } from "./components/admin/AdminLayout";
@@ -25,13 +30,20 @@ import { Login } from "./pages/auth/Login";
 import AdminRecordsPage from "./pages/admin/AdminRecordsPage";
 import AdminReportsPage from "./pages/admin/AdminReportsPage";
 import AdminEntryPage from "./pages/admin/AdminEntry";
+import GpLayout from "./components/gp/GpLayout";
+import GpDashboard from "./pages/Gp/GpDashboard";
+import GpRecordsPage from "./pages/Gp/Recods"
 
 function App() {
   const dispatch = useDispatch<AppDispatch>();
-  
+
   // FIX: Explicitly typing the state in useSelector fixes the 'unknown' error
-  const { status, isAuthenticated } = useSelector((state: RootState) => state.auth);
-  const { loading: userLoading } = useSelector((state: RootState) => state.user);
+  const { status, isAuthenticated } = useSelector(
+    (state: RootState) => state.auth,
+  );
+  const { loading: userLoading } = useSelector(
+    (state: RootState) => state.user,
+  );
 
   /* =====================================
       1. REFRESH SESSION ON MOUNT
@@ -59,7 +71,9 @@ function App() {
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#F9F9F7]">
         <div className="relative">
           <div className="w-16 h-16 border-4 border-slate-200 border-t-[#004832] rounded-full animate-spin"></div>
-          <div className="absolute inset-0 flex items-center justify-center text-xl">⚖️</div>
+          <div className="absolute inset-0 flex items-center justify-center text-xl">
+            ⚖️
+          </div>
         </div>
         <p className="mt-4 text-[#004832] font-black text-[10px] uppercase tracking-[0.3em] animate-pulse">
           Authenticating...
@@ -187,8 +201,33 @@ function App() {
             </ProtectedRoute>
           }
         />
+        {/* GP ROUTES */}
+        <Route
+          path="/gp"
+          element={
+            <ProtectedRoute gpOnly>
+              <GpLayout />
+            </ProtectedRoute>
+          }
+        >
+          {/* Default GP landing page */}
+          <Route index element={<GpDashboard />} />
 
-        <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} />
+          {/* Explicit dashboard path */}
+          <Route path="dashboard" element={<GpDashboard />} />
+          <Route path="records" element={<GpRecordsPage />} />
+
+          {/* GP Profile 
+  <Route path="profile" element={<GpProfile />} />*/}
+
+          {/* Optional fallback for unknown GP routes */}
+          <Route path="*" element={<Navigate to="/gp" replace />} />
+        </Route>
+
+        <Route
+          path="*"
+          element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />}
+        />
       </Routes>
     </Router>
   );

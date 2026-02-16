@@ -8,7 +8,7 @@ export interface User {
   id: string;
   firstName: string;
   lastName: string;
-  role: "user" | "admin";
+  role: "user" | "admin" | "gp";
 }
 
 type AsyncStatus = "idle" | "loading" | "succeeded" | "failed";

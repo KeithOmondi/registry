@@ -4,7 +4,8 @@ import authReducer from "./slices/authSlice"
 import courtsReducer from "./slices/courtsSlice";
 import reportsReducer from "./slices/reportsSlice"
 import userReducer from "./slices/userSlice";
-import gazetteReducer from "./slices/gazetteSlice"
+import gazetteReducer from "./slices/gazetteSlice";
+import gpReducer from "./slices/gpSlice"
 
 export const store = configureStore({
   reducer: {
@@ -13,7 +14,8 @@ export const store = configureStore({
     courts: courtsReducer,
     reports: reportsReducer,
     user: userReducer,
-    gazette: gazetteReducer
+    gazette: gazetteReducer,
+    gp: gpReducer
   },
 });
 

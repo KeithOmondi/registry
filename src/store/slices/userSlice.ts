@@ -14,6 +14,7 @@ export interface User {
   role: "Admin" | "User" | "Clerk"; // Adjust based on your actual roles
   isActive: boolean;
   accountVerified: boolean;
+  avatar?: string;
   createdAt: string;
 }
 
