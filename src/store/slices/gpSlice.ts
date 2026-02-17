@@ -1,35 +1,64 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
+import {
+  createSlice,
+  createAsyncThunk,
+  type PayloadAction,
+} from "@reduxjs/toolkit";
+import api from "../../api/axios";
 
 /* =====================================
-   TYPES
+   TYPES & CONSTANTS
 ===================================== */
 
-interface GpProfile {
+// Use a const object instead of an enum to avoid ts(1294)
+export const REJECTION_STATUS = {
+  PENDING: "pending",
+  RECTIFIED: "rectified",
+} as const;
+
+// Create a type from the object values
+export type RejectionStatus =
+  (typeof REJECTION_STATUS)[keyof typeof REJECTION_STATUS];
+
+export interface RecordItem {
   _id: string;
-  firstName: string;
-  lastName: string;
-  email?: string;
-  pjNumber: string;
-  role: string;
-  isActive: boolean;
+  causeNo: string;
+  rejectionReason: string;
+  dateReceived: string;
+  fileUrl: string;
+  status: RejectionStatus;
+  updatedBy: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    pjNumber: string;
+  };
+  courtStation: {
+    _id: string;
+    name: string;
+    level: string;
+  };
+  lastEditAction: string;
+  createdAt: string;
+}
+
+export interface GpDashboard {
+  gpId: string;
+  records: RecordItem[];
 }
 
 interface GpState {
-  profile: GpProfile | null;
-  dashboard: any | null;
+  profile: any | null;
+  dashboard: GpDashboard | null;
   loading: boolean;
+  success: boolean;
   error: string | null;
 }
-
-/* =====================================
-   INITIAL STATE
-===================================== */
 
 const initialState: GpState = {
   profile: null,
   dashboard: null,
   loading: false,
+  success: false,
   error: null,
 };
 
@@ -37,124 +66,120 @@ const initialState: GpState = {
    ASYNC THUNKS
 ===================================== */
 
-// 🔹 Get GP Dashboard
 export const fetchGpDashboard = createAsyncThunk(
   "gp/fetchDashboard",
   async (_, { rejectWithValue }) => {
     try {
-      const { data } = await axios.get("/api/gp/dashboard", {
-        withCredentials: true,
-      });
-      return data.data;
+      const { data } = await api.get("/gp/dashboard");
+      return data;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to load dashboard"
+        error.response?.data?.message || "Failed to load dashboard",
       );
     }
-  }
+  },
 );
 
-// 🔹 Get GP Profile
 export const fetchGpProfile = createAsyncThunk(
   "gp/fetchProfile",
   async (_, { rejectWithValue }) => {
     try {
-      const { data } = await axios.get("/api/gp/profile", {
-        withCredentials: true,
-      });
-      return data.data;
+      const { data } = await api.get("/gp/profile");
+      return data;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to fetch profile"
+        error.response?.data?.message || "Failed to fetch profile",
       );
     }
-  }
+  },
 );
 
-// 🔹 Update GP Profile
-export const updateGpProfile = createAsyncThunk(
-  "gp/updateProfile",
+export const submitRejectionRecord = createAsyncThunk(
+  "gp/submitRejection",
   async (
-    updates: { firstName?: string; lastName?: string; email?: string },
-    { rejectWithValue }
+    payload: {
+      causeNo: string;
+      rejectionReason: string;
+      dateOfRejection: string;
+      file: File;
+    },
+    { rejectWithValue },
   ) => {
     try {
-      const { data } = await axios.patch("/api/gp/profile", updates, {
-        withCredentials: true,
+      const formData = new FormData();
+      formData.append("causeNo", payload.causeNo);
+      formData.append("rejectionReason", payload.rejectionReason);
+      formData.append("dateOfRejection", payload.dateOfRejection);
+      formData.append("file", payload.file);
+
+      const { data } = await api.post("/gp/reject", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
-      return data.data;
+      return data;
     } catch (error: any) {
       return rejectWithValue(
-        error.response?.data?.message || "Profile update failed"
+        error.response?.data?.message || "Submission failed",
       );
     }
-  }
+  },
 );
 
 /* =====================================
    SLICE
 ===================================== */
-
 const gpSlice = createSlice({
   name: "gp",
   initialState,
   reducers: {
-    clearGpError(state) {
+    resetGpStatus: (state) => {
+      state.success = false;
       state.error = null;
     },
-    resetGpState: () => initialState,
+    clearGpState: () => initialState,
   },
   extraReducers: (builder) => {
     builder
-
-      /* ===== DASHBOARD ===== */
       .addCase(fetchGpDashboard.pending, (state) => {
         state.loading = true;
-        state.error = null;
       })
-      .addCase(fetchGpDashboard.fulfilled, (state, action) => {
-        state.loading = false;
-        state.dashboard = action.payload;
-      })
+      .addCase(
+        fetchGpDashboard.fulfilled,
+        (state, action: PayloadAction<GpDashboard>) => {
+          state.loading = false;
+          state.dashboard = action.payload;
+        },
+      )
       .addCase(fetchGpDashboard.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-
-      /* ===== PROFILE FETCH ===== */
-      .addCase(fetchGpProfile.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
       .addCase(fetchGpProfile.fulfilled, (state, action) => {
-        state.loading = false;
         state.profile = action.payload;
       })
-      .addCase(fetchGpProfile.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
-
-      /* ===== PROFILE UPDATE ===== */
-      .addCase(updateGpProfile.pending, (state) => {
+      .addCase(submitRejectionRecord.pending, (state) => {
         state.loading = true;
         state.error = null;
+        state.success = false;
       })
-      .addCase(updateGpProfile.fulfilled, (state, action) => {
-        state.loading = false;
-        state.profile = action.payload;
-      })
-      .addCase(updateGpProfile.rejected, (state, action) => {
+      .addCase(
+        submitRejectionRecord.fulfilled,
+        (state, action: PayloadAction<RecordItem>) => {
+          state.loading = false;
+          state.success = true;
+          if (state.dashboard) {
+            state.dashboard.records = [
+              action.payload,
+              ...(state.dashboard.records || []),
+            ];
+          }
+        },
+      )
+      .addCase(submitRejectionRecord.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });
   },
 });
 
-/* =====================================
-   EXPORTS
-===================================== */
-
-export const { clearGpError, resetGpState } = gpSlice.actions;
-
+export const { resetGpStatus, clearGpState } = gpSlice.actions;
 export default gpSlice.reducer;

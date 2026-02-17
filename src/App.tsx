@@ -33,6 +33,7 @@ import AdminEntryPage from "./pages/admin/AdminEntry";
 import GpLayout from "./components/gp/GpLayout";
 import GpDashboard from "./pages/Gp/GpDashboard";
 import GpRecordsPage from "./pages/Gp/Recods"
+import RecordsFormPage from "./pages/Gp/RecordsForm";
 
 function App() {
   const dispatch = useDispatch<AppDispatch>();
@@ -216,6 +217,7 @@ function App() {
           {/* Explicit dashboard path */}
           <Route path="dashboard" element={<GpDashboard />} />
           <Route path="records" element={<GpRecordsPage />} />
+          <Route path="form" element={<RecordsFormPage />} />
 
           {/* GP Profile 
   <Route path="profile" element={<GpProfile />} />*/}

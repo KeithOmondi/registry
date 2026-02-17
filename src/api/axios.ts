@@ -8,11 +8,11 @@ export const injectStore = (_store: any) => {
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
-  withCredentials: true, // send HttpOnly cookies
-  headers: { "Content-Type": "application/json" },
+  withCredentials: true,
+  // REMOVED: "Content-Type": "application/json"
+  // Letting Axios detect the content type automatically is safer for file uploads
 });
 
-// Response interceptor for 401 → refresh
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
@@ -26,7 +26,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       try {
         await store.dispatch(refreshSession()).unwrap();
-        return api(originalRequest);
+        return api(originalRequest); // This will now correctly re-send FormData if the original request was an upload
       } catch (err) {
         store.dispatch(logout());
         return Promise.reject(err);

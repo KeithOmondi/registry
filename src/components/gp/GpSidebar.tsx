@@ -4,6 +4,8 @@ import {
   LayoutDashboard,
   User,
   LogOut,
+  Database,
+  Pen,
 } from "lucide-react";
 
 interface SidebarItem {
@@ -14,7 +16,8 @@ interface SidebarItem {
 
 const menuItems: SidebarItem[] = [
   { name: "Dashboard", path: "/gp", icon: LayoutDashboard },
-  { name: "Records", path: "/gp/records", icon: LayoutDashboard },
+  { name: "Records", path: "/gp/records", icon: Database },
+  { name: "Add Records", path: "/gp/form", icon: Pen },
   { name: "Profile", path: "/gp/profile", icon: User },
 ];
 
