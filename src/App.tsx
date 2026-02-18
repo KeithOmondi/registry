@@ -34,6 +34,7 @@ import GpLayout from "./components/gp/GpLayout";
 import GpDashboard from "./pages/Gp/GpDashboard";
 import GpRecordsPage from "./pages/Gp/Recods"
 import RecordsFormPage from "./pages/Gp/RecordsForm";
+import AdminGpRecordsPage from "./pages/admin/AdminGpRecords";
 
 function App() {
   const dispatch = useDispatch<AppDispatch>();
@@ -198,6 +199,16 @@ function App() {
             <ProtectedRoute adminOnly>
               <AdminLayout>
                 <AdminEntryPage />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/gp"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminLayout>
+                <AdminGpRecordsPage />
               </AdminLayout>
             </ProtectedRoute>
           }

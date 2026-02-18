@@ -18,6 +18,7 @@ const menuItems: SidebarItem[] = [
   { name: "Dashboard", path: "/admin", icon: <LayoutDashboard size={20} /> },
   { name: "Users", path: "/admin/users", icon: <Users size={20} /> },
   { name: "Records", path: "/admin/records", icon: <FileText size={20} /> },
+  { name: "GP Records", path: "/admin/gp", icon: <FileText size={20} /> },
   { name: "Reports", path: "/admin/reports", icon: <BarChart3 size={20} /> },
   { name: "Settings", path: "/admin/settings", icon: <Settings size={20} /> },
 ];

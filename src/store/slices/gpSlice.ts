@@ -1,9 +1,4 @@
-import {
-  createSlice,
-  createAsyncThunk,
-  type PayloadAction,
-  isAnyOf,
-} from "@reduxjs/toolkit";
+import { createSlice, createAsyncThunk, isAnyOf } from "@reduxjs/toolkit";
 import api from "../../api/axios";
 
 /* =====================================
@@ -52,7 +47,9 @@ interface GpState {
   dashboard: GpDashboard | null;
   adminRecords: RecordItem[];
   currentRecord: RecordItem | null;
+  previewBlobUrl: string | null;
   loading: boolean;
+  loadingPreview: boolean; // NEW: separate loader for preview modal
   success: boolean;
   error: string | null;
 }
@@ -62,16 +59,38 @@ const initialState: GpState = {
   dashboard: null,
   adminRecords: [],
   currentRecord: null,
+  previewBlobUrl: null,
   loading: false,
+  loadingPreview: false,
   success: false,
   error: null,
 };
+
+
 
 /* =====================================
    ASYNC THUNKS
 ===================================== */
 
-// 🔹 Admin: All records
+/**
+ * 🔹 Proxy Preview Thunk
+ */
+export const fetchProxyPreview = createAsyncThunk<
+  string,
+  string,
+  { rejectValue: string }
+>("gp/fetchProxyPreview", async (recordId, { rejectWithValue }) => {
+  try {
+    const response = await api.get(`/gp/admin/proxy-view/${recordId}`, {
+      responseType: "blob",
+    });
+    const blobUrl = URL.createObjectURL(response.data);
+    return blobUrl;
+  } catch (err: any) {
+    return rejectWithValue("Failed to generate secure preview");
+  }
+});
+
 export const fetchAllRecordsForAdmin = createAsyncThunk<
   RecordItem[],
   void,
@@ -81,28 +100,25 @@ export const fetchAllRecordsForAdmin = createAsyncThunk<
     const { data } = await api.get("/gp/admin/all-records");
     return data;
   } catch (err: any) {
+    return rejectWithValue(err.response?.data?.message || "Admin fetch failed");
+  }
+});
+
+export const fetchGpDashboard = createAsyncThunk<
+  GpDashboard,
+  void,
+  { rejectValue: string }
+>("gp/fetchDashboard", async (_, { rejectWithValue }) => {
+  try {
+    const { data } = await api.get("/gp/dashboard");
+    return data as GpDashboard;
+  } catch (err: any) {
     return rejectWithValue(
-      err.response?.data?.message || "Admin fetch failed"
+      err.response?.data?.message || "Failed to load dashboard",
     );
   }
 });
 
-export const fetchGpDashboard = createAsyncThunk<GpDashboard, void, { rejectValue: string }>(
-  "gp/fetchDashboard",
-  async (_, { rejectWithValue }) => {
-    try {
-      const { data } = await api.get("/gp/dashboard");
-      // Use `data` directly, not `data.data`
-      return data as GpDashboard;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || "Failed to load dashboard");
-    }
-  }
-);
-
-
-
-// 🔹 Fetch single record
 export const fetchRecordById = createAsyncThunk<
   RecordItem,
   string,
@@ -112,13 +128,10 @@ export const fetchRecordById = createAsyncThunk<
     const { data } = await api.get(`/gp/${id}`);
     return data;
   } catch (err: any) {
-    return rejectWithValue(
-      err.response?.data?.message || "Failed to fetch record"
-    );
+    return rejectWithValue(err.response?.data?.message || "Failed to fetch record");
   }
 });
 
-// 🔹 Submit rejection record
 export const submitRejectionRecord = createAsyncThunk<
   RecordItem,
   {
@@ -130,45 +143,23 @@ export const submitRejectionRecord = createAsyncThunk<
     file: File;
   },
   { rejectValue: string }
->(
-  "gp/submitRejection",
-  async (payload, { rejectWithValue }) => {
-    try {
-      const formData = new FormData();
+>("gp/submitRejection", async (payload, { rejectWithValue }) => {
+  try {
+    const formData = new FormData();
+    formData.append("causeNo", payload.causeNo);
+    formData.append("deceasedName", payload.deceasedName);
+    formData.append("rejectionReason", payload.rejectionReason);
+    formData.append("dateOfRejection", payload.dateOfRejection);
+    formData.append("courtStation", payload.courtStation);
+    formData.append("file", payload.file);
 
-      formData.append("causeNo", payload.causeNo);
-      formData.append("deceasedName", payload.deceasedName);
-      formData.append("rejectionReason", payload.rejectionReason);
-      formData.append("dateOfRejection", payload.dateOfRejection);
-      formData.append("courtStation", payload.courtStation);
-      formData.append("file", payload.file);
-
-      // 🔎 Debug: Log FormData contents
-      for (const [key, value] of formData.entries()) {
-        console.log("FormData:", key, value);
-      }
-
-      // ✅ DO NOT manually set Content-Type
-      const { data } = await api.post("/gp/reject", formData);
-
-      return data.data as RecordItem;
-    } catch (err: any) {
-      console.error("❌ submitRejectionRecord error:", err);
-      console.error("Status:", err.response?.status);
-      console.error("Response data:", err.response?.data);
-
-      return rejectWithValue(
-        err.response?.data?.message || "Submission failed"
-      );
-    }
+    const { data } = await api.post("/gp/reject", formData);
+    return data.data as RecordItem;
+  } catch (err: any) {
+    return rejectWithValue(err.response?.data?.message || "Submission failed");
   }
-);
+});
 
-
-
-
-
-// 🔹 Update rejection record
 export const updateRejectionRecord = createAsyncThunk<
   RecordItem,
   { id: string; updates: Partial<RecordItem> },
@@ -178,27 +169,21 @@ export const updateRejectionRecord = createAsyncThunk<
     const { data } = await api.put(`/gp/update/${id}`, updates);
     return data;
   } catch (err: any) {
-    return rejectWithValue(
-      err.response?.data?.message || "Update failed"
-    );
+    return rejectWithValue(err.response?.data?.message || "Update failed");
   }
 });
 
-// 🔹 GP Profile
-export const fetchGpProfile = createAsyncThunk<
-  any,
-  void,
-  { rejectValue: string }
->("gp/fetchProfile", async (_, { rejectWithValue }) => {
-  try {
-    const { data } = await api.get("/gp/profile");
-    return data;
-  } catch (err: any) {
-    return rejectWithValue(
-      err.response?.data?.message || "Failed to fetch profile"
-    );
+export const fetchGpProfile = createAsyncThunk<any, void, { rejectValue: string }>(
+  "gp/fetchProfile",
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get("/gp/profile");
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || "Failed to fetch profile");
+    }
   }
-});
+);
 
 /* =====================================
    SLICE
@@ -212,82 +197,73 @@ const gpSlice = createSlice({
       state.success = false;
       state.error = null;
     },
+    clearPreview: (state) => {
+      if (state.previewBlobUrl) {
+        URL.revokeObjectURL(state.previewBlobUrl);
+        state.previewBlobUrl = null;
+      }
+    },
     clearGpState: () => initialState,
   },
-
   extraReducers: (builder) => {
-    /* ===============================
-       ✅ CASES FIRST (FULFILLED)
-    =============================== */
+    /* ===========================
+       Proxy Preview
+    ============================ */
+    builder.addCase(fetchProxyPreview.pending, (state) => {
+      state.loadingPreview = true;
+      state.error = null;
+    });
+    builder.addCase(fetchProxyPreview.fulfilled, (state, action) => {
+      state.loadingPreview = false;
+      state.previewBlobUrl = action.payload;
+    });
+    builder.addCase(fetchProxyPreview.rejected, (state, action) => {
+      state.loadingPreview = false;
+      state.error = action.payload || "Failed to generate preview";
+    });
 
-    builder.addCase(
-      fetchGpDashboard.fulfilled,
-      (state, action: PayloadAction<GpDashboard>) => {
-        state.loading = false;
-        state.dashboard = action.payload;
-      }
-    );
-
-    builder.addCase(
-      fetchAllRecordsForAdmin.fulfilled,
-      (state, action: PayloadAction<RecordItem[]>) => {
-        state.loading = false;
-        state.adminRecords = action.payload;
-      }
-    );
-
-    builder.addCase(
-      fetchRecordById.fulfilled,
-      (state, action: PayloadAction<RecordItem>) => {
-        state.loading = false;
-        state.currentRecord = action.payload;
-      }
-    );
-
+    /* ===========================
+       Other Fulfilled Actions
+    ============================ */
+    builder.addCase(fetchGpDashboard.fulfilled, (state, action) => {
+      state.loading = false;
+      state.dashboard = action.payload;
+    });
+    builder.addCase(fetchAllRecordsForAdmin.fulfilled, (state, action) => {
+      state.loading = false;
+      state.adminRecords = action.payload;
+    });
+    builder.addCase(fetchRecordById.fulfilled, (state, action) => {
+      state.loading = false;
+      state.currentRecord = action.payload;
+    });
     builder.addCase(fetchGpProfile.fulfilled, (state, action) => {
       state.loading = false;
       state.profile = action.payload;
     });
+    builder.addCase(submitRejectionRecord.fulfilled, (state, action) => {
+      state.loading = false;
+      state.success = true;
+      if (state.dashboard) state.dashboard.records.unshift(action.payload);
+      state.adminRecords.unshift(action.payload);
+    });
+    builder.addCase(updateRejectionRecord.fulfilled, (state, action) => {
+      state.loading = false;
+      state.success = true;
+      state.currentRecord = action.payload;
 
-    builder.addCase(
-      submitRejectionRecord.fulfilled,
-      (state, action: PayloadAction<RecordItem>) => {
-        state.loading = false;
-        state.success = true;
+      const updateList = (list: RecordItem[]) => {
+        const index = list.findIndex((r) => r._id === action.payload._id);
+        if (index !== -1) list[index] = action.payload;
+      };
 
-        if (state.dashboard) {
-          state.dashboard.records.unshift(action.payload);
-        }
-      }
-    );
+      if (state.dashboard) updateList(state.dashboard.records);
+      updateList(state.adminRecords);
+    });
 
-    builder.addCase(
-      updateRejectionRecord.fulfilled,
-      (state, action: PayloadAction<RecordItem>) => {
-        state.loading = false;
-        state.success = true;
-        state.currentRecord = action.payload;
-
-        if (state.dashboard) {
-          const index = state.dashboard.records.findIndex(
-            (r) => r._id === action.payload._id
-          );
-          if (index !== -1)
-            state.dashboard.records[index] = action.payload;
-        }
-
-        const adminIndex = state.adminRecords.findIndex(
-          (r) => r._id === action.payload._id
-        );
-        if (adminIndex !== -1)
-          state.adminRecords[adminIndex] = action.payload;
-      }
-    );
-
-    /* ===============================
-       🔄 PENDING MATCHER
-    =============================== */
-
+    /* ===========================
+       Pending Matcher (Except Preview)
+    ============================ */
     builder.addMatcher(
       isAnyOf(
         fetchAllRecordsForAdmin.pending,
@@ -295,7 +271,7 @@ const gpSlice = createSlice({
         fetchRecordById.pending,
         submitRejectionRecord.pending,
         updateRejectionRecord.pending,
-        fetchGpProfile.pending
+        fetchGpProfile.pending,
       ),
       (state) => {
         state.loading = true;
@@ -304,10 +280,9 @@ const gpSlice = createSlice({
       }
     );
 
-    /* ===============================
-       ❌ REJECTED MATCHER
-    =============================== */
-
+    /* ===========================
+       Rejected Matcher (Except Preview)
+    ============================ */
     builder.addMatcher(
       isAnyOf(
         fetchAllRecordsForAdmin.rejected,
@@ -315,16 +290,15 @@ const gpSlice = createSlice({
         fetchRecordById.rejected,
         submitRejectionRecord.rejected,
         updateRejectionRecord.rejected,
-        fetchGpProfile.rejected
+        fetchGpProfile.rejected,
       ),
       (state, action) => {
         state.loading = false;
-        state.error =
-          (action.payload as string) || "Something went wrong";
+        state.error = (action.payload as string) || "Something went wrong";
       }
     );
   },
 });
 
-export const { resetGpStatus, clearGpState } = gpSlice.actions;
+export const { resetGpStatus, clearGpState, clearPreview } = gpSlice.actions;
 export default gpSlice.reducer;
