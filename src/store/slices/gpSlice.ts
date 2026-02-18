@@ -87,20 +87,19 @@ export const fetchAllRecordsForAdmin = createAsyncThunk<
   }
 });
 
-// 🔹 GP Dashboard
-export const fetchGpDashboard = createAsyncThunk<
-  GpDashboard,
-  void,
-  { rejectValue: string }
->("gp/fetchDashboard", async (_, { rejectWithValue }) => {
-  try {
-    const { data } = await api.get("/gp/dashboard");
-    // Backend returns { status, data: { gpId, records } }
-    return data.data as GpDashboard;
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || "Failed to load dashboard");
+export const fetchGpDashboard = createAsyncThunk<GpDashboard, void, { rejectValue: string }>(
+  "gp/fetchDashboard",
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get("/gp/dashboard");
+      // Use `data` directly, not `data.data`
+      return data as GpDashboard;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || "Failed to load dashboard");
+    }
   }
-});
+);
+
 
 
 // 🔹 Fetch single record
