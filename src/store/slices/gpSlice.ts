@@ -130,26 +130,35 @@ export const submitRejectionRecord = createAsyncThunk<
     file: File;
   },
   { rejectValue: string }
->("gp/submitRejection", async (payload, { rejectWithValue }) => {
-  try {
-    const formData = new FormData();
-    formData.append("causeNo", payload.causeNo);
-    formData.append("deceasedName", payload.deceasedName);
-    formData.append("rejectionReason", payload.rejectionReason);
-    formData.append("dateOfRejection", payload.dateOfRejection);
-    formData.append("courtStation", payload.courtStation);
-    formData.append("file", payload.file);
+>(
+  "gp/submitRejection",
+  async (payload, { rejectWithValue }) => {
+    try {
+      const formData = new FormData();
+      formData.append("causeNo", payload.causeNo);
+      formData.append("deceasedName", payload.deceasedName);
+      formData.append("rejectionReason", payload.rejectionReason);
+      formData.append("dateOfRejection", payload.dateOfRejection);
+      formData.append("courtStation", payload.courtStation);
+      formData.append("file", payload.file);
 
-    const { data } = await api.post("/gp/reject", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+      const { data } = await api.post("/gp/reject", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
-    // 👈 unwrap 'data' from backend { status, data }
-    return data.data as RecordItem;
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || "Submission failed");
+      return data.data as RecordItem;
+    } catch (err: any) {
+      // 🔹 Log the full error for debugging in prod
+      console.error("❌ submitRejectionRecord error:", err);
+      console.error("Response data:", err.response?.data);
+
+      return rejectWithValue(
+        err.response?.data?.message || "Submission failed"
+      );
+    }
   }
-});
+);
+
 
 
 
