@@ -49,7 +49,7 @@ const GpDashboard = () => {
   }
 
   return (
-    <div className="max-w-[1600px] mx-auto space-y-10 p-2 md:p-6">
+    <div className="max-w-[1200px] mx-auto space-y-10 p-2 md:p-6">
       
       {/* EXECUTIVE TOP BAR */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
