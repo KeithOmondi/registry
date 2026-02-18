@@ -1,17 +1,14 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
-import {
-  LayoutDashboard,
-  User,
-  LogOut,
-  Database,
-  Pen,
-} from "lucide-react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { LayoutDashboard, User, LogOut, Database, Pen } from "lucide-react";
+import { logout } from "../../store/slices/authSlice";
+import type { AppDispatch } from "../../store/store";
 
 interface SidebarItem {
   name: string;
   path: string;
-  icon: React.ElementType; // Better way to handle icons
+  icon: React.ElementType;
 }
 
 const menuItems: SidebarItem[] = [
@@ -24,14 +21,22 @@ const menuItems: SidebarItem[] = [
 interface GpSidebarProps {
   isOpen: boolean;
   toggle: () => void;
-  onLogout?: () => void;
 }
 
-export const GpSidebar: React.FC<GpSidebarProps> = ({
-  isOpen,
-  toggle,
-  onLogout,
-}) => {
+export const GpSidebar: React.FC<GpSidebarProps> = ({ isOpen, toggle }) => {
+  const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await dispatch(logout()).unwrap();
+      navigate("/login");
+    } catch (err: unknown) {
+      if (err instanceof Error) console.error("Logout failed:", err.message);
+      else console.error("Logout failed:", err);
+    }
+  };
+
   return (
     <>
       {/* Mobile Overlay */}
@@ -43,17 +48,12 @@ export const GpSidebar: React.FC<GpSidebarProps> = ({
       )}
 
       <aside
-        className={`
-          fixed inset-y-0 left-0 z-50 bg-[#0F172A] text-white
-          flex flex-col transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]
-          border-r border-white/10 shadow-[20px_0_50px_rgba(0,0,0,0.2)]
-          ${isOpen ? "w-72" : "w-24 -translate-x-full lg:translate-x-0"} 
-          lg:sticky lg:top-0 lg:h-screen
-        `}
+        className={`fixed inset-y-0 left-0 z-50 bg-[#0F172A] text-white flex flex-col transition-all
+          ${isOpen ? "w-60" : "w-19 -translate-x-full lg:translate-x-0"}`}
       >
         {/* Brand Header */}
         <div
-          className={`h-28 flex items-center overflow-hidden ${isOpen ? "px-8" : "justify-center"}`}
+          className={`h-28 flex items-center ${isOpen ? "px-8" : "justify-center"}`}
         >
           <div className="flex items-center gap-4">
             <div className="relative group">
@@ -64,9 +64,8 @@ export const GpSidebar: React.FC<GpSidebarProps> = ({
                 </span>
               </div>
             </div>
-
             {isOpen && (
-              <div className="flex flex-col whitespace-nowrap animate-in fade-in slide-in-from-left-4 duration-500">
+              <div className="flex flex-col animate-in fade-in slide-in-from-left-4 duration-500">
                 <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em]">
                   Medical Systems
                 </span>
@@ -103,7 +102,6 @@ export const GpSidebar: React.FC<GpSidebarProps> = ({
                       size={22}
                       className={`transition-transform duration-300 group-hover:scale-110 ${isActive ? "text-emerald-400" : ""}`}
                     />
-
                     {isOpen && (
                       <span
                         className={`text-[11px] font-black uppercase tracking-widest ${isActive ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
@@ -111,13 +109,6 @@ export const GpSidebar: React.FC<GpSidebarProps> = ({
                         {item.name}
                       </span>
                     )}
-
-                    {/* Active Indicator Pin */}
-                    {isActive && (
-                      <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_#10b981]" />
-                    )}
-
-                    {/* Tooltip Collapsed */}
                     {!isOpen && (
                       <div className="absolute left-20 scale-0 group-hover:scale-100 transition-all origin-left bg-slate-800 text-emerald-400 text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl shadow-2xl z-[60] border border-white/10 whitespace-nowrap pointer-events-none">
                         {item.name}
@@ -130,17 +121,11 @@ export const GpSidebar: React.FC<GpSidebarProps> = ({
           })}
         </nav>
 
-        {/* Action Footer */}
+        {/* Logout Footer */}
         <div className="p-4 border-t border-white/5">
           <button
-            onClick={onLogout}
-            className={`
-              group relative flex items-center gap-4 w-full rounded-2xl
-              text-[11px] font-black uppercase tracking-widest
-              text-slate-400 hover:text-rose-400 hover:bg-rose-500/5
-              transition-all duration-300
-              ${isOpen ? "px-5 py-4" : "p-4 justify-center"}
-            `}
+            onClick={handleLogout}
+            className={`group relative flex items-center gap-4 w-full rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-400 hover:bg-rose-500/5 transition-all duration-300 ${isOpen ? "px-5 py-4" : "p-4 justify-center"}`}
           >
             <LogOut size={22} />
             {isOpen && <span>Terminate Session</span>}
