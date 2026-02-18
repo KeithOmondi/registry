@@ -32,8 +32,7 @@ export const GpSidebar: React.FC<GpSidebarProps> = ({ isOpen, toggle }) => {
       await dispatch(logout()).unwrap();
       navigate("/login");
     } catch (err: unknown) {
-      if (err instanceof Error) console.error("Logout failed:", err.message);
-      else console.error("Logout failed:", err);
+      console.error("Logout failed:", err instanceof Error ? err.message : err);
     }
   };
 
@@ -42,7 +41,7 @@ export const GpSidebar: React.FC<GpSidebarProps> = ({ isOpen, toggle }) => {
       {/* Mobile Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-md lg:hidden transition-opacity"
+          className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-md lg:hidden"
           onClick={toggle}
         />
       )}
@@ -86,15 +85,11 @@ export const GpSidebar: React.FC<GpSidebarProps> = ({ isOpen, toggle }) => {
                 key={item.path}
                 to={item.path}
                 onClick={() => window.innerWidth < 1024 && toggle()}
-                className={({ isActive }) => `
-                  group relative flex items-center rounded-2xl transition-all duration-300
-                  ${isOpen ? "px-5 py-4 gap-4" : "p-4 justify-center"}
-                  ${
-                    isActive
-                      ? "bg-emerald-600/10 text-emerald-400 border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.1)]"
-                      : "text-slate-400 hover:bg-white/5 hover:text-white"
-                  }
-                `}
+                className={({ isActive }) =>
+                  `group relative flex items-center rounded-2xl transition-all duration-300 ${
+                    isOpen ? "px-5 py-4 gap-4" : "p-4 justify-center"
+                  } ${isActive ? "bg-emerald-600/10 text-emerald-400" : "text-slate-400 hover:bg-white/5 hover:text-white"}`
+                }
               >
                 {({ isActive }) => (
                   <>
@@ -121,11 +116,13 @@ export const GpSidebar: React.FC<GpSidebarProps> = ({ isOpen, toggle }) => {
           })}
         </nav>
 
-        {/* Logout Footer */}
+        {/* Logout */}
         <div className="p-4 border-t border-white/5">
           <button
             onClick={handleLogout}
-            className={`group relative flex items-center gap-4 w-full rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-400 hover:bg-rose-500/5 transition-all duration-300 ${isOpen ? "px-5 py-4" : "p-4 justify-center"}`}
+            className={`group relative flex items-center gap-4 w-full rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-rose-400 hover:bg-rose-500/5 transition-all duration-300 ${
+              isOpen ? "px-5 py-4" : "p-4 justify-center"
+            }`}
           >
             <LogOut size={22} />
             {isOpen && <span>Terminate Session</span>}
