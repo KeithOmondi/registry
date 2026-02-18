@@ -19,7 +19,7 @@ const RecordsPage = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { dashboard, loading } = useSelector((state: RootState) => state.gp);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilter, setActiveFilter] = useState("ALL");
+  const [activeFilter, setActiveFilter] = useState<"ALL" | "REJECTED" | "RECTIFIED">("ALL");
 
   useEffect(() => {
     dispatch(fetchGpDashboard());
@@ -27,19 +27,23 @@ const RecordsPage = () => {
 
   const records = dashboard?.records || [];
 
-  // Filter Logic - Search Cause No, Deceased, or Court Station
+  // Filter records by search and status
   const filteredRecords = records.filter((record) => {
     const searchStr = searchTerm.toLowerCase();
-    const matchesSearch = 
-      record.causeNo.toLowerCase().includes(searchStr) || 
+    const matchesSearch =
+      record.causeNo.toLowerCase().includes(searchStr) ||
       record.deceasedName?.toLowerCase().includes(searchStr) ||
       record.courtStation?.name?.toLowerCase().includes(searchStr);
-    
-    // Updated filter logic: ALL, REJECTED (default state), or RECTIFIED
+
+    // Map pending → REJECTED, rectified → RECTIFIED
+    const statusMap: Record<string, string> = {
+      pending: "REJECTED",
+      rectified: "RECTIFIED",
+    };
+    const recordStatus = statusMap[record.status] || record.status.toUpperCase();
+
     const matchesFilter =
-      activeFilter === "ALL" || 
-      (activeFilter === "REJECTED" && record.status === "pending") || // mapping pending to "Rejected"
-      record.status === activeFilter.toLowerCase();
+      activeFilter === "ALL" || recordStatus === activeFilter;
 
     return matchesSearch && matchesFilter;
   });
@@ -56,8 +60,8 @@ const RecordsPage = () => {
   }
 
   return (
-    <div className="max-w-[1600px] mx-auto p-4 md:p-8 space-y-8">
-      {/* HEADER SECTION */}
+    <div className="max-w-[1200px] mx-auto p-4 md:p-8 space-y-8">
+      {/* HEADER */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tighter uppercase">
@@ -89,12 +93,12 @@ const RecordsPage = () => {
         </div>
       </div>
 
-      {/* FILTER TABS - Removed 'Pending' for 'Rejected' */}
+      {/* FILTER TABS */}
       <div className="flex items-center gap-2 border-b border-slate-100 pb-1">
         {["ALL", "REJECTED", "RECTIFIED"].map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveFilter(tab)}
+            onClick={() => setActiveFilter(tab as any)}
             className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all relative
               ${activeFilter === tab ? "text-rose-700" : "text-slate-400 hover:text-slate-600"}`}
           >
@@ -106,7 +110,7 @@ const RecordsPage = () => {
         ))}
       </div>
 
-      {/* TABLE SECTION */}
+      {/* TABLE */}
       <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/40 border border-slate-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -122,92 +126,108 @@ const RecordsPage = () => {
             </thead>
             <tbody className="divide-y divide-slate-50">
               {filteredRecords.length > 0 ? (
-                filteredRecords.map((record) => (
-                  <tr key={record._id} className="group hover:bg-slate-50/80 transition-all">
-                    {/* Cause No */}
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-700 group-hover:bg-rose-700 group-hover:text-white transition-all shadow-inner">
-                          <ShieldAlert size={18} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-black text-slate-800 tracking-tight leading-none mb-1 uppercase">
-                            {record.causeNo}
-                          </p>
-                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter flex items-center gap-1">
-                            <UserIcon size={10} /> 
-                            Logged By: {record.updatedBy?.firstName} {record.updatedBy?.lastName?.charAt(0)}.
-                          </p>
-                        </div>
-                      </div>
-                    </td>
+                filteredRecords.map((record) => {
+                  const statusMap: Record<string, string> = {
+                    pending: "REJECTED",
+                    rectified: "RECTIFIED",
+                  };
+                  const recordStatus = statusMap[record.status] || record.status.toUpperCase();
 
-                    {/* Deceased Name */}
-                    <td className="px-8 py-6">
+                  return (
+                    <tr key={record._id} className="group hover:bg-slate-50/80 transition-all">
+                      {/* Cause No */}
+                      <td className="px-8 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-rose-50 rounded-xl flex items-center justify-center text-rose-700 group-hover:bg-rose-700 group-hover:text-white transition-all shadow-inner">
+                            <ShieldAlert size={18} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-black text-slate-800 tracking-tight leading-none mb-1 uppercase">
+                              {record.causeNo}
+                            </p>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter flex items-center gap-1">
+                              <UserIcon size={10} /> 
+                              Logged By: {record.updatedBy?.firstName} {record.updatedBy?.lastName?.charAt(0)}.
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Deceased Name */}
+                      <td className="px-8 py-6">
                         <p className="text-xs font-black text-slate-700 uppercase tracking-tight">
-                            {record.deceasedName || "N/A"}
+                          {record.deceasedName || "N/A"}
                         </p>
                         <p className="text-[9px] text-slate-400 font-bold flex items-center gap-1">
-                           <Archive size={10} /> ID: {record._id.slice(-8).toUpperCase()}
+                          <Archive size={10} /> ID: {record._id.slice(-8).toUpperCase()}
                         </p>
-                    </td>
+                      </td>
 
-                    {/* Court Station & Date */}
-                    <td className="px-8 py-6">
+                      {/* Court Station & Date */}
+                      <td className="px-8 py-6">
                         <div className="space-y-1">
-                            <div className="flex items-center gap-1.5 text-slate-700">
-                                <MapPin size={12} className="text-rose-600" />
-                                <span className="text-[10px] font-black uppercase tracking-tight">
-                                    {record.courtStation?.name?.split("-")[0] || "Unknown"}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-slate-400">
-                                <Calendar size={12} />
-                                <span className="text-[10px] font-bold">
-                                    {record.dateReceived ? new Date(record.dateReceived).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : "---"}
-                                </span>
-                            </div>
+                          <div className="flex items-center gap-1.5 text-slate-700">
+                            <MapPin size={12} className="text-rose-600" />
+                            <span className="text-[10px] font-black uppercase tracking-tight">
+                              {record.courtStation?.name?.split("-")[0] || "Unknown"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-slate-400">
+                            <Calendar size={12} />
+                            <span className="text-[10px] font-bold">
+                              {record.dateReceived
+                                ? new Date(record.dateReceived).toLocaleDateString("en-GB", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                  })
+                                : "---"}
+                            </span>
+                          </div>
                         </div>
-                    </td>
+                      </td>
 
-                    {/* Rejection Reason */}
-                    <td className="px-8 py-6 max-w-xs">
-                      <div className="flex items-start gap-2 text-slate-500">
-                        <AlertCircle size={14} className="mt-0.5 text-rose-400 shrink-0" />
-                        <p className="text-[11px] font-semibold leading-relaxed line-clamp-2">
-                          {record.rejectionReason}
-                        </p>
-                      </div>
-                    </td>
+                      {/* Rejection Reason */}
+                      <td className="px-8 py-6 max-w-xs">
+                        <div className="flex items-start gap-2 text-slate-500">
+                          <AlertCircle size={14} className="mt-0.5 text-rose-400 shrink-0" />
+                          <p className="text-[11px] font-semibold leading-relaxed line-clamp-2">
+                            {record.rejectionReason}
+                          </p>
+                        </div>
+                      </td>
 
-                    {/* Status - Replaced 'Pending' with 'Rejected' Badge */}
-                    <td className="px-8 py-6">
-                      <div className="flex justify-center">
-                        <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border shadow-sm
-                          ${record.status === "pending"
-                              ? "bg-rose-50 text-rose-700 border-rose-100"
-                              : "bg-emerald-50 text-emerald-700 border-emerald-100"
-                          }`}
+                      {/* Status */}
+                      <td className="px-8 py-6">
+                        <div className="flex justify-center">
+                          <span
+                            className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border shadow-sm
+                              ${
+                                recordStatus === "REJECTED"
+                                  ? "bg-rose-50 text-rose-700 border-rose-100"
+                                  : "bg-emerald-50 text-emerald-700 border-emerald-100"
+                              }`}
+                          >
+                            {recordStatus}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* External Link */}
+                      <td className="px-8 py-6 text-right">
+                        <a
+                          href={record.fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:bg-rose-700 hover:text-white transition-all inline-flex items-center justify-center border border-slate-100"
+                          title="View Document"
                         >
-                          {record.status === "pending" ? "REJECTED" : "RECTIFIED"}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* External Link */}
-                    <td className="px-8 py-6 text-right">
-                      <a
-                        href={record.fileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:bg-rose-700 hover:text-white transition-all inline-flex items-center justify-center border border-slate-100"
-                        title="View Document"
-                      >
-                        <ExternalLink size={16} />
-                      </a>
-                    </td>
-                  </tr>
-                ))
+                          <ExternalLink size={16} />
+                        </a>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan={6} className="px-8 py-32 text-center text-slate-300 uppercase font-black tracking-widest text-xs opacity-40">

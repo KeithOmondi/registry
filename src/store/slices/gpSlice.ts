@@ -95,13 +95,13 @@ export const fetchGpDashboard = createAsyncThunk<
 >("gp/fetchDashboard", async (_, { rejectWithValue }) => {
   try {
     const { data } = await api.get("/gp/dashboard");
-    return data;
+    // Backend returns { status, data: { gpId, records } }
+    return data.data as GpDashboard;
   } catch (err: any) {
-    return rejectWithValue(
-      err.response?.data?.message || "Failed to load dashboard"
-    );
+    return rejectWithValue(err.response?.data?.message || "Failed to load dashboard");
   }
 });
+
 
 // 🔹 Fetch single record
 export const fetchRecordById = createAsyncThunk<
@@ -134,23 +134,24 @@ export const submitRejectionRecord = createAsyncThunk<
 >("gp/submitRejection", async (payload, { rejectWithValue }) => {
   try {
     const formData = new FormData();
-
     formData.append("causeNo", payload.causeNo);
     formData.append("deceasedName", payload.deceasedName);
     formData.append("rejectionReason", payload.rejectionReason);
     formData.append("dateOfRejection", payload.dateOfRejection);
-    formData.append("courtStation", payload.courtStation); // 👈 NEW
+    formData.append("courtStation", payload.courtStation);
     formData.append("file", payload.file);
 
-    const { data } = await api.post("/gp/reject", formData);
+    const { data } = await api.post("/gp/reject", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
 
-    return data;
+    // 👈 unwrap 'data' from backend { status, data }
+    return data.data as RecordItem;
   } catch (err: any) {
-    return rejectWithValue(
-      err.response?.data?.message || "Submission failed"
-    );
+    return rejectWithValue(err.response?.data?.message || "Submission failed");
   }
 });
+
 
 
 // 🔹 Update rejection record
