@@ -135,6 +135,7 @@ export const submitRejectionRecord = createAsyncThunk<
   async (payload, { rejectWithValue }) => {
     try {
       const formData = new FormData();
+
       formData.append("causeNo", payload.causeNo);
       formData.append("deceasedName", payload.deceasedName);
       formData.append("rejectionReason", payload.rejectionReason);
@@ -142,14 +143,18 @@ export const submitRejectionRecord = createAsyncThunk<
       formData.append("courtStation", payload.courtStation);
       formData.append("file", payload.file);
 
-      const { data } = await api.post("/gp/reject", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      // 🔎 Debug: Log FormData contents
+      for (const [key, value] of formData.entries()) {
+        console.log("FormData:", key, value);
+      }
+
+      // ✅ DO NOT manually set Content-Type
+      const { data } = await api.post("/gp/reject", formData);
 
       return data.data as RecordItem;
     } catch (err: any) {
-      // 🔹 Log the full error for debugging in prod
       console.error("❌ submitRejectionRecord error:", err);
+      console.error("Status:", err.response?.status);
       console.error("Response data:", err.response?.data);
 
       return rejectWithValue(
@@ -158,6 +163,7 @@ export const submitRejectionRecord = createAsyncThunk<
     }
   }
 );
+
 
 
 
