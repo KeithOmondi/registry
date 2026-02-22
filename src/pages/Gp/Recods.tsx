@@ -4,13 +4,14 @@ import {
   Search,
   Download,
   Loader2,
-  ExternalLink,
   AlertCircle,
   User as UserIcon,
   MapPin,
   Calendar,
   ShieldAlert,
   Archive,
+  FileX,
+  FileCheck,
 } from "lucide-react";
 import { fetchGpDashboard } from "../../store/slices/gpSlice";
 import type { AppDispatch, RootState } from "../../store/store";
@@ -19,7 +20,9 @@ const RecordsPage = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { dashboard, loading } = useSelector((state: RootState) => state.gp);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilter, setActiveFilter] = useState<"ALL" | "REJECTED" | "RECTIFIED">("ALL");
+  const [activeFilter, setActiveFilter] = useState<
+    "ALL" | "REJECTED" | "RECTIFIED"
+  >("ALL");
 
   useEffect(() => {
     dispatch(fetchGpDashboard());
@@ -27,7 +30,6 @@ const RecordsPage = () => {
 
   const records = dashboard?.records || [];
 
-  // Filter records by search and status
   const filteredRecords = records.filter((record) => {
     const searchStr = searchTerm.toLowerCase();
     const matchesSearch =
@@ -35,12 +37,12 @@ const RecordsPage = () => {
       record.deceasedName?.toLowerCase().includes(searchStr) ||
       record.courtStation?.name?.toLowerCase().includes(searchStr);
 
-    // Map pending → REJECTED, rectified → RECTIFIED
     const statusMap: Record<string, string> = {
       pending: "REJECTED",
       rectified: "RECTIFIED",
     };
-    const recordStatus = statusMap[record.status] || record.status.toUpperCase();
+    const recordStatus =
+      statusMap[record.status] || record.status.toUpperCase();
 
     const matchesFilter =
       activeFilter === "ALL" || recordStatus === activeFilter;
@@ -120,8 +122,8 @@ const RecordsPage = () => {
                 <th className="px-8 py-5">Subject (Deceased)</th>
                 <th className="px-8 py-5">Station & Date</th>
                 <th className="px-8 py-5">Compliance Breach</th>
+                <th className="px-8 py-5">Proof Status</th>
                 <th className="px-8 py-5 text-center">Archive Status</th>
-                <th className="px-8 py-5 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -131,10 +133,14 @@ const RecordsPage = () => {
                     pending: "REJECTED",
                     rectified: "RECTIFIED",
                   };
-                  const recordStatus = statusMap[record.status] || record.status.toUpperCase();
+                  const recordStatus =
+                    statusMap[record.status] || record.status.toUpperCase();
 
                   return (
-                    <tr key={record._id} className="group hover:bg-slate-50/80 transition-all">
+                    <tr
+                      key={record._id}
+                      className="group hover:bg-slate-50/80 transition-all"
+                    >
                       {/* Cause No */}
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-4">
@@ -146,8 +152,9 @@ const RecordsPage = () => {
                               {record.causeNo}
                             </p>
                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter flex items-center gap-1">
-                              <UserIcon size={10} /> 
-                              Logged By: {record.updatedBy?.firstName} {record.updatedBy?.lastName?.charAt(0)}.
+                              <UserIcon size={10} />
+                              {record.updatedBy?.firstName}{" "}
+                              {record.updatedBy?.lastName?.charAt(0)}.
                             </p>
                           </div>
                         </div>
@@ -159,7 +166,8 @@ const RecordsPage = () => {
                           {record.deceasedName || "N/A"}
                         </p>
                         <p className="text-[9px] text-slate-400 font-bold flex items-center gap-1">
-                          <Archive size={10} /> ID: {record._id.slice(-8).toUpperCase()}
+                          <Archive size={10} /> ID:{" "}
+                          {record._id.slice(-8).toUpperCase()}
                         </p>
                       </td>
 
@@ -169,14 +177,17 @@ const RecordsPage = () => {
                           <div className="flex items-center gap-1.5 text-slate-700">
                             <MapPin size={12} className="text-rose-600" />
                             <span className="text-[10px] font-black uppercase tracking-tight">
-                              {record.courtStation?.name?.split("-")[0] || "Unknown"}
+                              {record.courtStation?.name?.split("-")[0] ||
+                                "Unknown"}
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5 text-slate-400">
                             <Calendar size={12} />
                             <span className="text-[10px] font-bold">
                               {record.dateReceived
-                                ? new Date(record.dateReceived).toLocaleDateString("en-GB", {
+                                ? new Date(
+                                    record.dateReceived,
+                                  ).toLocaleDateString("en-GB", {
                                     day: "2-digit",
                                     month: "short",
                                     year: "numeric",
@@ -190,11 +201,38 @@ const RecordsPage = () => {
                       {/* Rejection Reason */}
                       <td className="px-8 py-6 max-w-xs">
                         <div className="flex items-start gap-2 text-slate-500">
-                          <AlertCircle size={14} className="mt-0.5 text-rose-400 shrink-0" />
+                          <AlertCircle
+                            size={14}
+                            className="mt-0.5 text-rose-400 shrink-0"
+                          />
                           <p className="text-[11px] font-semibold leading-relaxed line-clamp-2">
                             {record.rejectionReason}
                           </p>
                         </div>
+                      </td>
+
+                      {/* Proof Status (NEW - Replaces the external link column) */}
+                      <td className="px-8 py-6">
+                        {record.fileUrl ? (
+                          <a
+                            href={record.fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-1.5 text-emerald-600 hover:text-emerald-700 transition-colors"
+                          >
+                            <FileCheck size={14} />
+                            <span className="text-[9px] font-black uppercase tracking-tighter">
+                              View Proof
+                            </span>
+                          </a>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-slate-300">
+                            <FileX size={14} />
+                            <span className="text-[9px] font-black uppercase tracking-tighter">
+                              No Proof
+                            </span>
+                          </div>
+                        )}
                       </td>
 
                       {/* Status */}
@@ -212,25 +250,15 @@ const RecordsPage = () => {
                           </span>
                         </div>
                       </td>
-
-                      {/* External Link */}
-                      <td className="px-8 py-6 text-right">
-                        <a
-                          href={record.fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:bg-rose-700 hover:text-white transition-all inline-flex items-center justify-center border border-slate-100"
-                          title="View Document"
-                        >
-                          <ExternalLink size={16} />
-                        </a>
-                      </td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-8 py-32 text-center text-slate-300 uppercase font-black tracking-widest text-xs opacity-40">
+                  <td
+                    colSpan={6}
+                    className="px-8 py-32 text-center text-slate-300 uppercase font-black tracking-widest text-xs opacity-40"
+                  >
                     Archive is empty for this criteria
                   </td>
                 </tr>
