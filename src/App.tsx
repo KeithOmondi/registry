@@ -8,15 +8,15 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { Toaster } from "react-hot-toast";
 
-// Ensure these types are correctly exported from your store.ts
 import type { RootState, AppDispatch } from "./store/store";
-
 import { refreshSession } from "./store/slices/authSlice";
-import { fetchMyProfile } from "./store/slices/userSlice";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
+
 import { UserLayout } from "./components/user/UserLayout";
 import { AdminLayout } from "./components/admin/AdminLayout";
+import GpLayout from "./components/gp/GpLayout";
 
+/* ================= USER ================= */
 import DashboardPage from "./pages/user/Dashboard";
 import RecordsPage from "./pages/user/Records";
 import CreateRecordPage from "./pages/user/CreateRecord";
@@ -24,61 +24,55 @@ import ReportsPage from "./pages/user/Reports";
 import NotForwardedPage from "./pages/user/NotForwarded";
 import ScansPage from "./pages/user/Scans";
 
+/* ================= ADMIN ================= */
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
 import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
-import { Login } from "./pages/auth/Login";
 import AdminRecordsPage from "./pages/admin/AdminRecordsPage";
 import AdminReportsPage from "./pages/admin/AdminReportsPage";
 import AdminEntryPage from "./pages/admin/AdminEntry";
-import GpLayout from "./components/gp/GpLayout";
-import GpDashboard from "./pages/Gp/GpDashboard";
-import GpRecordsPage from "./pages/Gp/Recods"
-import RecordsFormPage from "./pages/Gp/RecordsForm";
 import AdminGpRecordsPage from "./pages/admin/AdminGpRecords";
+
+/* ================= GP ================= */
+import GpDashboard from "./pages/Gp/GpDashboard";
+import GpRecordsPage from "./pages/Gp/Recods";
+import RecordsFormPage from "./pages/Gp/RecordsForm";
+
+/* ================= AUTH ================= */
+import { Login } from "./pages/auth/Login";
+
+/* ================================================= */
 
 function App() {
   const dispatch = useDispatch<AppDispatch>();
 
-  // FIX: Explicitly typing the state in useSelector fixes the 'unknown' error
-  const { status, isAuthenticated } = useSelector(
-    (state: RootState) => state.auth,
-  );
-  const { loading: userLoading } = useSelector(
-    (state: RootState) => state.user,
+  const { isAuthenticated, status } = useSelector(
+    (state: RootState) => state.auth
   );
 
-  /* =====================================
-      1. REFRESH SESSION ON MOUNT
-  ===================================== */
+  /* =========================================
+     Silent session restore (runs in background)
+  ========================================= */
   useEffect(() => {
     dispatch(refreshSession());
   }, [dispatch]);
 
-  /* =====================================
-      2. HYDRATE USER PROFILE
-  ===================================== */
-  useEffect(() => {
-    // If the session is valid but we don't have the user profile yet, fetch it
-    if (isAuthenticated) {
-      dispatch(fetchMyProfile());
-    }
-  }, [isAuthenticated, dispatch]);
+  /* =========================================
+     Show loader ONLY if user already authenticated
+  ========================================= */
+  const showAppLoader = isAuthenticated && status === "loading";
 
-  /* =====================================
-      3. GLOBAL LOADING STATE
-  ===================================== */
-  // We stay in loading state if auth is checking OR if we are logged in but fetching the name
-  if (status === "loading" || (isAuthenticated && userLoading)) {
+  if (showAppLoader) {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#F9F9F7]">
         <div className="relative">
-          <div className="w-16 h-16 border-4 border-slate-200 border-t-[#004832] rounded-full animate-spin"></div>
+          <div className="w-16 h-16 border-4 border-slate-200 border-t-[#004832] rounded-full animate-spin" />
           <div className="absolute inset-0 flex items-center justify-center text-xl">
             ⚖️
           </div>
         </div>
+
         <p className="mt-4 text-[#004832] font-black text-[10px] uppercase tracking-[0.3em] animate-pulse">
-          Authenticating...
+          Restoring session...
         </p>
       </div>
     );
@@ -87,10 +81,21 @@ function App() {
   return (
     <Router>
       <Toaster position="top-right" />
-      <Routes>
-        <Route path="/login" element={<Login />} />
 
-        {/* USER ROUTES */}
+      <Routes>
+        {/* ================= LOGIN ================= */}
+        <Route
+          path="/login"
+          element={
+            isAuthenticated ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <Login />
+            )
+          }
+        />
+
+        {/* ================= USER ROUTES ================= */}
         <Route
           path="/dashboard"
           element={
@@ -101,6 +106,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/records"
           element={
@@ -111,6 +117,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/records/create"
           element={
@@ -121,6 +128,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/records/reports"
           element={
@@ -131,6 +139,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/records/gp"
           element={
@@ -141,6 +150,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/records/scans"
           element={
@@ -152,7 +162,7 @@ function App() {
           }
         />
 
-        {/* ADMIN ROUTES */}
+        {/* ================= ADMIN ROUTES ================= */}
         <Route
           path="/admin"
           element={
@@ -163,6 +173,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/admin/users"
           element={
@@ -173,6 +184,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/admin/records"
           element={
@@ -183,6 +195,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/admin/reports"
           element={
@@ -193,6 +206,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/admin/entries"
           element={
@@ -203,6 +217,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/admin/gp"
           element={
@@ -213,7 +228,8 @@ function App() {
             </ProtectedRoute>
           }
         />
-        {/* GP ROUTES */}
+
+        {/* ================= GP ROUTES ================= */}
         <Route
           path="/gp"
           element={
@@ -222,24 +238,22 @@ function App() {
             </ProtectedRoute>
           }
         >
-          {/* Default GP landing page */}
           <Route index element={<GpDashboard />} />
-
-          {/* Explicit dashboard path */}
           <Route path="dashboard" element={<GpDashboard />} />
           <Route path="records" element={<GpRecordsPage />} />
           <Route path="form" element={<RecordsFormPage />} />
-
-          {/* GP Profile 
-  <Route path="profile" element={<GpProfile />} />*/}
-
-          {/* Optional fallback for unknown GP routes */}
           <Route path="*" element={<Navigate to="/gp" replace />} />
         </Route>
 
+        {/* ================= FALLBACK ================= */}
         <Route
           path="*"
-          element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />}
+          element={
+            <Navigate
+              to={isAuthenticated ? "/dashboard" : "/login"}
+              replace
+            />
+          }
         />
       </Routes>
     </Router>
