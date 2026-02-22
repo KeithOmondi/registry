@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk, isAnyOf } from "@reduxjs/toolkit";
 import api from "../../api/axios";
 
 /* =====================================
-   TYPES & CONSTANTS
+    TYPES & CONSTANTS
 ===================================== */
 
 export const REJECTION_STATUS = {
@@ -19,7 +19,7 @@ export interface RecordItem {
   deceasedName: string;
   rejectionReason: string;
   dateReceived: string;
-  fileUrl: string;
+  fileUrl: | null;
   status: RejectionStatus;
   updatedBy: {
     _id: string;
@@ -48,8 +48,10 @@ interface GpState {
   adminRecords: RecordItem[];
   currentRecord: RecordItem | null;
   previewBlobUrl: string | null;
+  lookupResult: string | null; // NEW: Holds the auto-fetched name
   loading: boolean;
-  loadingPreview: boolean; // NEW: separate loader for preview modal
+  loadingPreview: boolean;
+  loadingLookup: boolean; // NEW: Separate loader for the lookup field
   success: boolean;
   error: string | null;
 }
@@ -60,21 +62,18 @@ const initialState: GpState = {
   adminRecords: [],
   currentRecord: null,
   previewBlobUrl: null,
+  lookupResult: null,
   loading: false,
   loadingPreview: false,
+  loadingLookup: false,
   success: false,
   error: null,
 };
 
-
-
 /* =====================================
-   ASYNC THUNKS
+    ASYNC THUNKS
 ===================================== */
 
-/**
- * 🔹 Proxy Preview Thunk
- */
 export const fetchProxyPreview = createAsyncThunk<
   string,
   string,
@@ -84,8 +83,7 @@ export const fetchProxyPreview = createAsyncThunk<
     const response = await api.get(`/gp/admin/proxy-view/${recordId}`, {
       responseType: "blob",
     });
-    const blobUrl = URL.createObjectURL(response.data);
-    return blobUrl;
+    return URL.createObjectURL(response.data);
   } catch (err: any) {
     return rejectWithValue("Failed to generate secure preview");
   }
@@ -113,9 +111,7 @@ export const fetchGpDashboard = createAsyncThunk<
     const { data } = await api.get("/gp/dashboard");
     return data as GpDashboard;
   } catch (err: any) {
-    return rejectWithValue(
-      err.response?.data?.message || "Failed to load dashboard",
-    );
+    return rejectWithValue(err.response?.data?.message || "Failed to load dashboard");
   }
 });
 
@@ -132,6 +128,33 @@ export const fetchRecordById = createAsyncThunk<
   }
 });
 
+/* =====================================
+    UPDATED ASYNC THUNK
+===================================== */
+export const lookupDeceasedName = createAsyncThunk<
+  string,
+  { causeNo: string; courtStation: string },
+  { rejectValue: string }
+>("gp/lookupDeceasedName", async ({ causeNo, courtStation }, { rejectWithValue }) => {
+  try {
+    // USE PARAMS OBJECT: Axios handles encoding special characters like '&' and '/'
+    const { data } = await api.get(`/gp/lookup`, {
+      params: { 
+        causeNo: causeNo.trim(), 
+        courtStation 
+      }
+    });
+
+    // Backend returns { deceasedName: "..." }
+    return data.deceasedName;
+  } catch (err: any) {
+    // If the backend returns a 404, we want that specific message
+    return rejectWithValue(
+      err.response?.data?.message || "Record not found in court DB"
+    );
+  }
+});
+
 export const submitRejectionRecord = createAsyncThunk<
   RecordItem,
   {
@@ -140,23 +163,36 @@ export const submitRejectionRecord = createAsyncThunk<
     rejectionReason: string;
     dateOfRejection: string;
     courtStation: string;
-    file: File;
+    file: File | null; // Correctly typed as optional
   },
   { rejectValue: string }
 >("gp/submitRejection", async (payload, { rejectWithValue }) => {
   try {
     const formData = new FormData();
-    formData.append("causeNo", payload.causeNo);
-    formData.append("deceasedName", payload.deceasedName);
-    formData.append("rejectionReason", payload.rejectionReason);
-    formData.append("dateOfRejection", payload.dateOfRejection);
-    formData.append("courtStation", payload.courtStation);
-    formData.append("file", payload.file);
 
-    const { data } = await api.post("/gp/reject", formData);
+    // Loop through all keys except 'file'
+    Object.entries(payload).forEach(([key, value]) => {
+      if (key !== "file") {
+        formData.append(key, value as string);
+      }
+    });
+
+    // ✅ Only append file if it's not null
+    if (payload.file) {
+      formData.append("file", payload.file);
+    }
+
+    const { data } = await api.post("/gp/reject", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
     return data.data as RecordItem;
   } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || "Submission failed");
+    return rejectWithValue(
+      err.response?.data?.message || "Submission failed"
+    );
   }
 });
 
@@ -186,7 +222,7 @@ export const fetchGpProfile = createAsyncThunk<any, void, { rejectValue: string 
 );
 
 /* =====================================
-   SLICE
+    SLICE
 ===================================== */
 
 const gpSlice = createSlice({
@@ -196,6 +232,7 @@ const gpSlice = createSlice({
     resetGpStatus: (state) => {
       state.success = false;
       state.error = null;
+      state.lookupResult = null; // Important: Clear the auto-fill name
     },
     clearPreview: (state) => {
       if (state.previewBlobUrl) {
@@ -206,64 +243,68 @@ const gpSlice = createSlice({
     clearGpState: () => initialState,
   },
   extraReducers: (builder) => {
-    /* ===========================
-       Proxy Preview
-    ============================ */
-    builder.addCase(fetchProxyPreview.pending, (state) => {
-      state.loadingPreview = true;
-      state.error = null;
-    });
-    builder.addCase(fetchProxyPreview.fulfilled, (state, action) => {
-      state.loadingPreview = false;
-      state.previewBlobUrl = action.payload;
-    });
-    builder.addCase(fetchProxyPreview.rejected, (state, action) => {
-      state.loadingPreview = false;
-      state.error = action.payload || "Failed to generate preview";
-    });
+    /* --- Proxy Preview --- */
+    builder
+      .addCase(fetchProxyPreview.pending, (state) => {
+        state.loadingPreview = true;
+      })
+      .addCase(fetchProxyPreview.fulfilled, (state, action) => {
+        state.loadingPreview = false;
+        state.previewBlobUrl = action.payload;
+      })
+      .addCase(fetchProxyPreview.rejected, (state, action) => {
+        state.loadingPreview = false;
+        state.error = action.payload || "Failed to generate preview";
+      });
 
-    /* ===========================
-       Other Fulfilled Actions
-    ============================ */
+    /* --- Deceased Name Lookup --- */
+    builder
+      .addCase(lookupDeceasedName.pending, (state) => {
+        state.loadingLookup = true;
+        state.error = null;
+        state.lookupResult = null;
+      })
+      .addCase(lookupDeceasedName.fulfilled, (state, action) => {
+        state.loadingLookup = false;
+        state.lookupResult = action.payload;
+        // Also update the current record if we are editing
+        if (state.currentRecord) state.currentRecord.deceasedName = action.payload;
+      })
+      .addCase(lookupDeceasedName.rejected, (state, action) => {
+        state.loadingLookup = false;
+        state.error = action.payload || "Lookup failed";
+      });
+
+    /* --- Standard Thunk Fulfillment --- */
     builder.addCase(fetchGpDashboard.fulfilled, (state, action) => {
-      state.loading = false;
       state.dashboard = action.payload;
     });
     builder.addCase(fetchAllRecordsForAdmin.fulfilled, (state, action) => {
-      state.loading = false;
       state.adminRecords = action.payload;
     });
     builder.addCase(fetchRecordById.fulfilled, (state, action) => {
-      state.loading = false;
       state.currentRecord = action.payload;
     });
     builder.addCase(fetchGpProfile.fulfilled, (state, action) => {
-      state.loading = false;
       state.profile = action.payload;
     });
     builder.addCase(submitRejectionRecord.fulfilled, (state, action) => {
-      state.loading = false;
       state.success = true;
       if (state.dashboard) state.dashboard.records.unshift(action.payload);
       state.adminRecords.unshift(action.payload);
     });
     builder.addCase(updateRejectionRecord.fulfilled, (state, action) => {
-      state.loading = false;
       state.success = true;
       state.currentRecord = action.payload;
-
       const updateList = (list: RecordItem[]) => {
         const index = list.findIndex((r) => r._id === action.payload._id);
         if (index !== -1) list[index] = action.payload;
       };
-
       if (state.dashboard) updateList(state.dashboard.records);
       updateList(state.adminRecords);
     });
 
-    /* ===========================
-       Pending Matcher (Except Preview)
-    ============================ */
+    /* --- Global Loading/Error Matchers --- */
     builder.addMatcher(
       isAnyOf(
         fetchAllRecordsForAdmin.pending,
@@ -271,7 +312,7 @@ const gpSlice = createSlice({
         fetchRecordById.pending,
         submitRejectionRecord.pending,
         updateRejectionRecord.pending,
-        fetchGpProfile.pending,
+        fetchGpProfile.pending
       ),
       (state) => {
         state.loading = true;
@@ -280,21 +321,26 @@ const gpSlice = createSlice({
       }
     );
 
-    /* ===========================
-       Rejected Matcher (Except Preview)
-    ============================ */
     builder.addMatcher(
       isAnyOf(
+        fetchAllRecordsForAdmin.fulfilled,
+        fetchGpDashboard.fulfilled,
+        fetchRecordById.fulfilled,
+        submitRejectionRecord.fulfilled,
+        updateRejectionRecord.fulfilled,
+        fetchGpProfile.fulfilled,
         fetchAllRecordsForAdmin.rejected,
         fetchGpDashboard.rejected,
         fetchRecordById.rejected,
         submitRejectionRecord.rejected,
         updateRejectionRecord.rejected,
-        fetchGpProfile.rejected,
+        fetchGpProfile.rejected
       ),
       (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) || "Something went wrong";
+        if (action.type.endsWith("/rejected")) {
+          state.error = (action.payload as string) || "Something went wrong";
+        }
       }
     );
   },

@@ -1,17 +1,16 @@
+/* =====================================
+    UPDATED RECORDS FORM PAGE
+===================================== */
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import {
-  ShieldCheck,
-  Building2,
-  UploadCloud,
-  FileText,
-  Calendar,
-  User,
-  AlertCircle,
-  Loader2,
+import { 
+  Loader2, 
+  ChevronDown, 
+  FileText, 
+  CheckCircle2, 
+  AlertCircle, 
   Search,
-  ChevronDown,
-  CheckCircle2,
+  X 
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -19,12 +18,14 @@ import type { AppDispatch, RootState } from "../../store/store";
 import {
   resetGpStatus,
   submitRejectionRecord,
+  lookupDeceasedName,
 } from "../../store/slices/gpSlice";
 import { fetchCourts } from "../../store/slices/courtsSlice";
 
 const RecordsFormPage = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { loading, error, success } = useSelector(
+  
+  const { loading, error, success, lookupResult, loadingLookup } = useSelector(
     (state: RootState) => state.gp,
   );
   const { courts, loading: courtsLoading } = useSelector(
@@ -52,17 +53,22 @@ const RecordsFormPage = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    if (lookupResult) {
+      setFormData((prev) => ({ ...prev, deceasedName: lookupResult }));
+      toast.success("Record found in court database", { icon: "🔍" });
+    }
+  }, [lookupResult]);
+
+  useEffect(() => {
+    const { causeNo, courtStation } = formData;
+    if (causeNo.length < 3 || !courtStation) return;
+
+    const delayDebounceFn = setTimeout(() => {
+      dispatch(lookupDeceasedName({ causeNo, courtStation }));
+    }, 800);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [formData.causeNo, formData.courtStation, dispatch]);
 
   useEffect(() => {
     if (success) {
@@ -79,23 +85,32 @@ const RecordsFormPage = () => {
     }
     if (error) {
       toast.error(error);
-      dispatch(resetGpStatus());
     }
   }, [success, error, dispatch, today]);
 
-  const filteredCourts = useMemo(() => {
-    return courts.filter((court) =>
-      court.name.toLowerCase().includes(courtSearch.toLowerCase()),
-    );
-  }, [courts, courtSearch]);
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  const selectedCourt = useMemo(() => {
-    return courts.find((c) => c._id === formData.courtStation);
-  }, [courts, formData.courtStation]);
+  const filteredCourts = useMemo(
+    () => courts.filter((court) => 
+      court.name.toLowerCase().includes(courtSearch.toLowerCase())
+    ),
+    [courts, courtSearch]
+  );
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
+  const selectedCourt = useMemo(
+    () => courts.find((c) => c._id === formData.courtStation),
+    [courts, formData.courtStation]
+  );
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -104,141 +119,101 @@ const RecordsFormPage = () => {
   };
 
   const handleSelectCourt = (id: string) => {
-    setFormData((prev) => ({ ...prev, courtStation: id }));
+    setFormData((prev) => ({ ...prev, courtStation: id, deceasedName: "" }));
     setIsDropdownOpen(false);
     setCourtSearch("");
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
-    if (!selected) return;
-    setFile(selected);
-    toast.success(`${selected.name} attached`);
+    if (selected) {
+      setFile(selected);
+      toast.success(`Proof attached: ${selected.name.substring(0, 15)}...`);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) return toast.error("Document proof required");
-    if (!formData.courtStation)
-      return toast.error("Please select a court station");
-
+    // ✅ FILE IS NOW OPTIONAL: Removed 'if (!file)' check
+    if (!formData.courtStation) return toast.error("Please select a court station");
+    if (!formData.deceasedName) return toast.error("Valid Cause Number required");
+    
+    // Dispatching (file will be null if not selected, which the backend now handles)
     dispatch(submitRejectionRecord({ ...formData, file }));
   };
 
-  // Shared Input Styles
-  const inputBase =
-    "w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-sm font-semibold transition-all focus:bg-white focus:border-[#013220] focus:ring-4 focus:ring-emerald-50 outline-none placeholder:text-slate-300";
-  const labelBase =
-    "text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-2 ml-1";
+  const inputBase = "w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-sm font-semibold transition-all focus:bg-white focus:border-[#013220] focus:ring-4 focus:ring-emerald-50 outline-none placeholder:text-slate-300";
+  const labelBase = "text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-2 ml-1";
 
   return (
     <div className="min-h-screen bg-slate-50/50 py-12 px-4">
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-emerald-950/5 border border-white overflow-hidden">
-          {/* MODERN HEADER */}
-          <div className="bg-[#013220] p-10 md:p-14 text-white relative overflow-hidden">
+        <div className="bg-white rounded-[2.5rem] shadow-2xl border overflow-hidden">
+          
+          <div className="bg-[#013220] p-10 text-white relative overflow-hidden">
             <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-emerald-500/20 rounded-lg text-emerald-400">
-                  <ShieldCheck size={20} />
-                </div>
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400/80">
-                  Justice Sector Records Management
-                </span>
-              </div>
-              <h2 className="text-4xl md:text-5xl font-black tracking-tighter italic">
-                FILE{" "}
-                <span className="text-emerald-500 not-italic">REJECTION</span>
+              <h2 className="text-4xl font-black italic">
+                FILE <span className="text-emerald-500 not-italic">REJECTION</span>
               </h2>
-              <p className="text-slate-400 text-xs mt-4 max-w-md font-medium leading-relaxed">
-                Log formal rejections into the Government Printer Ledger. Ensure
-                all metadata matches the physical file.
+              <p className="text-emerald-100/60 text-xs font-bold mt-2 uppercase tracking-[0.2em]">
+                GP Administration Portal • Official Entry
               </p>
             </div>
-            {/* Abstract Background Decoration */}
-            <Building2
-              className="absolute -right-16 -bottom-16 text-white/5 rotate-12"
-              size={320}
-            />
+            <FileText className="absolute -right-10 -bottom-10 w-64 h-64 text-emerald-900/20 rotate-12" />
           </div>
 
-          <form onSubmit={handleSubmit} className="p-8 md:p-12 space-y-8">
-            {/* GRID SECTION 1: IDENTITY */}
+          <form onSubmit={handleSubmit} className="p-8 space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div ref={dropdownRef} className="relative">
-                <label className={labelBase}>
-                  <Building2 size={14} /> Originating Court
-                </label>
+                <label className={labelBase}>Originating Court</label>
                 <button
                   type="button"
-                  onClick={() =>
-                    !courtsLoading && setIsDropdownOpen(!isDropdownOpen)
-                  }
-                  className={`${inputBase} flex justify-between items-center ${isDropdownOpen ? "border-[#013220] bg-white" : ""}`}
+                  disabled={courtsLoading}
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className={`${inputBase} flex justify-between items-center ${formData.courtStation ? "text-slate-900" : "text-slate-400"}`}
                 >
-                  <span
-                    className={
-                      selectedCourt ? "text-slate-900" : "text-slate-400"
-                    }
-                  >
-                    {courtsLoading
-                      ? "Synchronizing Stations..."
-                      : selectedCourt?.name || "Select Court Station"}
-                  </span>
-                  {courtsLoading ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <ChevronDown
-                      size={16}
-                      className={`transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
-                    />
-                  )}
+                  <span className="truncate">{selectedCourt?.name || "Select Court Station"}</span>
+                  {courtsLoading ? <Loader2 size={16} className="animate-spin" /> : <ChevronDown size={16} className={`transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />}
                 </button>
 
                 {isDropdownOpen && (
-                  <div className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
-                    <div className="p-3 bg-slate-50 border-b flex items-center gap-2">
-                      <Search size={16} className="text-slate-400" />
-                      <input
+                  <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                    <div className="p-3 sticky top-0 bg-white border-b border-slate-100 z-10 flex items-center gap-2">
+                      <Search size={14} className="text-slate-400 ml-2" />
+                      <input 
+                        placeholder="Search stations..." 
                         autoFocus
-                        value={courtSearch}
+                        className="w-full py-2 text-xs font-bold outline-none"
                         onChange={(e) => setCourtSearch(e.target.value)}
-                        placeholder="Filter stations..."
-                        className="bg-transparent w-full outline-none text-xs font-bold py-1"
+                        value={courtSearch}
                       />
+                      {courtSearch && (
+                        <button onClick={() => setCourtSearch("")}><X size={14} className="text-slate-400 hover:text-rose-500" /></button>
+                      )}
                     </div>
-                    <div className="max-h-64 overflow-y-auto">
+
+                    <div className="max-h-[320px] overflow-y-auto overflow-x-hidden bg-white py-2 scroll-smooth">
                       {filteredCourts.length > 0 ? (
                         filteredCourts.map((court) => (
                           <button
                             key={court._id}
                             type="button"
                             onClick={() => handleSelectCourt(court._id)}
-                            className="w-full text-left px-5 py-3 text-xs font-bold hover:bg-emerald-50 hover:text-emerald-800 transition-colors flex items-center justify-between group"
+                            className="w-full text-left px-5 py-4 text-[11px] font-black uppercase tracking-wider text-slate-600 hover:bg-emerald-50 hover:text-[#013220] transition-colors border-b border-slate-50 last:border-0"
                           >
                             {court.name}
-                            {formData.courtStation === court._id && (
-                              <CheckCircle2
-                                size={14}
-                                className="text-emerald-600"
-                              />
-                            )}
                           </button>
                         ))
                       ) : (
-                        <div className="p-10 text-center text-slate-400 text-xs italic">
-                          No stations found matching "{courtSearch}"
-                        </div>
+                        <div className="p-10 text-center text-slate-400 text-xs font-bold">No matches found</div>
                       )}
                     </div>
                   </div>
                 )}
               </div>
 
-              <div>
-                <label className={labelBase}>
-                  <FileText size={14} /> Cause Identification
-                </label>
+              <div className="relative">
+                <label className={labelBase}>Cause Identification</label>
                 <input
                   name="causeNo"
                   value={formData.causeNo}
@@ -250,26 +225,30 @@ const RecordsFormPage = () => {
               </div>
             </div>
 
-            {/* GRID SECTION 2: SUBJECT & DATE */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className={labelBase}>
-                  <User size={14} /> Deceased Name
-                </label>
-                <input
-                  name="deceasedName"
-                  value={formData.deceasedName}
-                  onChange={handleChange}
-                  required
-                  placeholder="Full Legal Name"
-                  className={inputBase}
-                />
+              <div className="relative">
+                <label className={labelBase}>Deceased Name</label>
+                <div className="relative">
+                  <input
+                    value={formData.deceasedName}
+                    readOnly
+                    placeholder={loadingLookup ? "Verifying..." : "Verified automatically"}
+                    className={`${inputBase} ${formData.deceasedName ? "bg-emerald-50/50 border-emerald-100 text-emerald-900" : "bg-slate-100 cursor-not-allowed"}`}
+                  />
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                    {loadingLookup ? (
+                      <Loader2 size={18} className="animate-spin text-emerald-600" />
+                    ) : formData.deceasedName ? (
+                      <CheckCircle2 size={18} className="text-emerald-500" />
+                    ) : (
+                      <AlertCircle size={18} className="text-slate-300" />
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div>
-                <label className={labelBase}>
-                  <Calendar size={14} /> Date of Entry
-                </label>
+                <label className={labelBase}>Date Received</label>
                 <input
                   type="date"
                   name="dateOfRejection"
@@ -281,101 +260,47 @@ const RecordsFormPage = () => {
               </div>
             </div>
 
-            {/* REJECTION REASON */}
             <div>
-              <label className={labelBase}>
-                <AlertCircle size={14} /> Formal Reason for Rejection
-              </label>
+              <label className={labelBase}>Reason for Rejection</label>
               <textarea
                 name="rejectionReason"
                 value={formData.rejectionReason}
                 onChange={handleChange}
                 required
-                placeholder="Detail the specific grounds for file rejection..."
+                placeholder="Describe why this record is being returned..."
                 className={`${inputBase} min-h-[120px] resize-none`}
               />
             </div>
 
-            {/* UPLOAD AREA */}
-            <div>
-              <label className={labelBase}>
-                <UploadCloud size={14} /> Supporting Evidence
+            <div className="group relative">
+              <label className={labelBase}>Proof of Rejection (Optional)</label>
+              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-200 border-dashed rounded-[2rem] cursor-pointer bg-slate-50 hover:bg-white hover:border-emerald-300 transition-all">
+                <div className="flex flex-col items-center justify-center">
+                  <p className="text-sm text-slate-500 font-bold">
+                    {file ? file.name : "Click to upload document (PDF/Image)"}
+                  </p>
+                </div>
+                <input type="file" className="hidden" onChange={handleFileChange} accept=".pdf,image/*" />
               </label>
-              <div
-                className={`relative group border-2 border-dashed rounded-3xl transition-all p-8 flex flex-col items-center justify-center gap-4
-                ${file ? "border-emerald-500 bg-emerald-50/50" : "border-slate-200 bg-slate-50/50 hover:border-[#013220] hover:bg-white"}`}
-              >
-                <input
-                  type="file"
-                  onChange={handleFileChange}
-                  required={!file}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                />
-
-                {file ? (
-                  <div className="flex flex-col items-center text-center animate-in zoom-in-95">
-                    <div className="p-4 bg-emerald-500 text-white rounded-full mb-2">
-                      <CheckCircle2 size={32} />
-                    </div>
-                    <p className="text-sm font-black text-slate-800">
-                      {file.name}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setFile(null)}
-                      className="mt-2 text-[10px] font-black uppercase text-rose-600 hover:underline"
-                    >
-                      Remove and Replace
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="p-4 bg-white shadow-sm rounded-2xl text-slate-400 group-hover:text-emerald-700 transition-colors">
-                      <UploadCloud size={32} />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-bold text-slate-600">
-                        Click or drag rejection notice
-                      </p>
-                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-tighter mt-1">
-                        PDF or Scanned Image (Max 10MB)
-                      </p>
-                    </div>
-                  </>
-                )}
-              </div>
             </div>
 
-            {/* SUBMIT BUTTON */}
             <button
               type="submit"
-              disabled={loading || !file}
-              className={`w-full py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm shadow-xl transition-all active:scale-[0.98] flex justify-center items-center gap-3
-                ${
-                  loading || !file
-                    ? "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
-                    : "bg-rose-700 text-white hover:bg-rose-800 shadow-rose-900/20"
-                }`}
+              disabled={loading || loadingLookup || !formData.deceasedName}
+              className={`w-full py-5 rounded-2xl text-white font-black tracking-widest uppercase transition-all shadow-xl active:scale-[0.98] ${
+                loading || !formData.deceasedName
+                  ? "bg-slate-300 cursor-not-allowed"
+                  : "bg-rose-600 hover:bg-rose-700 shadow-rose-200"
+              }`}
             >
               {loading ? (
-                <>
-                  <Loader2 className="animate-spin" size={20} /> Transmitting
-                  Data...
-                </>
-              ) : (
-                <>
-                  <ShieldCheck size={20} />
-                  Authorize & Post Rejection
-                </>
-              )}
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="animate-spin" /> PROCESSING...
+                </span>
+              ) : "Submit Rejection"}
             </button>
           </form>
         </div>
-
-        {/* Footer info */}
-        <p className="text-center mt-8 text-slate-400 text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2">
-          <AlertCircle size={12} /> Confidential Government Document Interface
-        </p>
       </div>
     </div>
   );
