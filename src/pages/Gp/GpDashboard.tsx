@@ -7,7 +7,6 @@ import {
   ShieldCheck, 
   TrendingUp, 
   Layers, 
-  ArrowUpRight,
   Search,
   ChevronRight
 } from "lucide-react";
@@ -29,7 +28,6 @@ const GpDashboard = () => {
     const pending = records.filter(r => r.status === REJECTION_STATUS.PENDING).length;
     const health = total > 0 ? Math.round(((total - pending) / total) * 100) : 100;
     
-    // Intake this month (simplified logic)
     const thisMonth = new Date().getMonth();
     const monthlyIntake = records.filter(r => new Date(r.dateReceived).getMonth() === thisMonth).length;
 
@@ -134,14 +132,13 @@ const GpDashboard = () => {
               <tr className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] bg-slate-50/50">
                 <th className="px-8 py-5">Cause Details</th>
                 <th className="px-8 py-5">Filing Date</th>
-                <th className="px-8 py-5 text-center">Audit Status</th>
-                <th className="px-8 py-5 text-right">Action</th>
+                <th className="px-8 py-5 text-right">Audit Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {records.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-8 py-20 text-center">
+                  <td colSpan={3} className="px-8 py-20 text-center">
                     <div className="flex flex-col items-center opacity-20">
                       <Layers size={64} className="mb-4" />
                       <p className="text-sm font-black uppercase tracking-widest">No Active Rejections Found</p>
@@ -168,8 +165,8 @@ const GpDashboard = () => {
                          <span className="text-xs font-bold">{new Date(record.dateReceived).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric'})}</span>
                       </div>
                     </td>
-                    <td className="px-8 py-6">
-                      <div className="flex justify-center">
+                    <td className="px-8 py-6 text-right">
+                      <div className="flex justify-end">
                         <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-sm
                           ${record.status === REJECTION_STATUS.PENDING 
                             ? "bg-amber-50 text-amber-600 border border-amber-100" 
@@ -178,16 +175,6 @@ const GpDashboard = () => {
                           {record.status}
                         </span>
                       </div>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <a 
-                        href={record.fileUrl} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-[#013220] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#0a4730] transition-all hover:shadow-lg hover:shadow-emerald-900/20"
-                      >
-                        Review PDF <ArrowUpRight size={14} />
-                      </a>
                     </td>
                   </tr>
                 ))
@@ -224,7 +211,6 @@ const StatCard = ({ title, value, icon, trend, isPrimary, isWarning }: any) => (
       </p>
     </div>
 
-    {/* Background visual flair */}
     {isPrimary && <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-[#013220]/5 rounded-full" />}
   </div>
 );
