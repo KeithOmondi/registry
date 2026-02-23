@@ -1,5 +1,5 @@
 /* =====================================
-    UPDATED RECORDS FORM PAGE
+    UPDATED HYBRID RECORDS FORM PAGE
 ===================================== */
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -10,7 +10,8 @@ import {
   CheckCircle2, 
   AlertCircle, 
   Search,
-  X 
+  X,
+  Edit3 // Added for visual feedback
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -52,6 +53,7 @@ const RecordsFormPage = () => {
     dispatch(resetGpStatus());
   }, [dispatch]);
 
+  // Automatic insertion from lookup
   useEffect(() => {
     if (lookupResult) {
       setFormData((prev) => ({ ...prev, deceasedName: lookupResult }));
@@ -134,11 +136,10 @@ const RecordsFormPage = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // ✅ FILE IS NOW OPTIONAL: Removed 'if (!file)' check
     if (!formData.courtStation) return toast.error("Please select a court station");
-    if (!formData.deceasedName) return toast.error("Valid Cause Number required");
+    // Updated validation: Ensure name exists, whether manual or automatic
+    if (!formData.deceasedName.trim()) return toast.error("Deceased Name is required");
     
-    // Dispatching (file will be null if not selected, which the backend now handles)
     dispatch(submitRejectionRecord({ ...formData, file }));
   };
 
@@ -227,23 +228,30 @@ const RecordsFormPage = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="relative">
-                <label className={labelBase}>Deceased Name</label>
+                <label className={labelBase}>Deceased Name (Auto-fill or Manual)</label>
                 <div className="relative">
                   <input
+                    name="deceasedName"
                     value={formData.deceasedName}
-                    readOnly
-                    placeholder={loadingLookup ? "Verifying..." : "Verified automatically"}
-                    className={`${inputBase} ${formData.deceasedName ? "bg-emerald-50/50 border-emerald-100 text-emerald-900" : "bg-slate-100 cursor-not-allowed"}`}
+                    onChange={handleChange}
+                    placeholder={loadingLookup ? "Verifying..." : "Enter name or wait for lookup"}
+                    className={`${inputBase} ${formData.deceasedName && !loadingLookup ? "bg-emerald-50/50 border-emerald-100" : ""}`}
                   />
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                    {loadingLookup ? (
-                      <Loader2 size={18} className="animate-spin text-emerald-600" />
-                    ) : formData.deceasedName ? (
-                      <CheckCircle2 size={18} className="text-emerald-500" />
-                    ) : (
-                      <AlertCircle size={18} className="text-slate-300" />
-                    )}
-                  </div>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+  {loadingLookup ? (
+    <Loader2 size={18} className="animate-spin text-emerald-600" />
+  ) : lookupResult && formData.deceasedName === lookupResult ? (
+    <span title="Verified by system">
+      <CheckCircle2 size={18} className="text-emerald-500" />
+    </span>
+  ) : formData.deceasedName ? (
+    <span title="Manual Entry">
+      <Edit3 size={18} className="text-amber-500" />
+    </span>
+  ) : (
+    <AlertCircle size={18} className="text-slate-300" />
+  )}
+</div>
                 </div>
               </div>
 
@@ -286,11 +294,11 @@ const RecordsFormPage = () => {
 
             <button
               type="submit"
-              disabled={loading || loadingLookup || !formData.deceasedName}
+              disabled={loading || loadingLookup || !formData.deceasedName.trim()}
               className={`w-full py-5 rounded-2xl text-white font-black tracking-widest uppercase transition-all shadow-xl active:scale-[0.98] ${
-                loading || !formData.deceasedName
-                  ? "bg-slate-300 cursor-not-allowed"
-                  : "bg-rose-600 hover:bg-rose-700 shadow-rose-200"
+                loading || !formData.deceasedName.trim()
+                ? "bg-slate-300 cursor-not-allowed"
+                : "bg-rose-600 hover:bg-rose-700 shadow-rose-200"
               }`}
             >
               {loading ? (
