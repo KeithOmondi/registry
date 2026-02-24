@@ -10,7 +10,7 @@ const GpHeader: React.FC<GpHeaderProps> = ({ toggleSidebar }) => {
   const user = useAppSelector((state) => state.user.currentUser);
   const fullName = user
     ? `${user.firstName} ${user.lastName}`
-    : "Medical Officer";
+    : "GOVERNMENT PRINTER";
   const initials = user ? `${user.firstName[0]}${user.lastName[0]}` : "GP";
 
   return (
