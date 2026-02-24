@@ -56,7 +56,7 @@ const GpHeader: React.FC<GpHeaderProps> = ({ toggleSidebar }) => {
               {fullName}
             </p>
             <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mt-1">
-              {user?.role || "Medical Personnel"}
+              {user?.role || "GP DASHBOARD"}
             </p>
           </div>
 
