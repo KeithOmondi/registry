@@ -36,7 +36,7 @@ const COLORS = {
 
 const DashboardPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { records, stats, loading, error } = useSelector(
+  const { records = [], stats, loading, error } = useSelector(
     (state: RootState) => state.records,
   );
 
@@ -47,7 +47,7 @@ const DashboardPage: React.FC = () => {
 
   // Transform data for the chart using the last 7 days
   const chartData = useMemo(() => {
-    if (!records.length) return [];
+    if (!records || records.length === 0) return [];
 
     const last7Days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
@@ -56,7 +56,11 @@ const DashboardPage: React.FC = () => {
     }).reverse();
 
     return last7Days.map((date) => {
-      const dayRecords = records.filter((r) => r.dateReceived.startsWith(date));
+      // FIX: Added optional chaining and fallback for dateReceived
+      const dayRecords = records.filter((r) => 
+        r?.dateReceived && typeof r.dateReceived === 'string' && r.dateReceived.startsWith(date)
+      );
+      
       return {
         date: new Date(date).toLocaleDateString("en-KE", { weekday: "short" }),
         approved: dayRecords.filter((r) => r.form60Compliance === "Approved").length,
@@ -65,7 +69,6 @@ const DashboardPage: React.FC = () => {
     });
   }, [records]);
 
-  // Simplified terminology for typical users
   const summaryCards = [
     {
       title: "Total Records",
@@ -75,13 +78,13 @@ const DashboardPage: React.FC = () => {
     },
     {
       title: "Approved Records",
-      value: stats?.compliance.approved || 0,
+      value: stats?.compliance?.approved || 0,
       bg: COLORS.ACCENT_GOLD,
       icon: <CheckCircle />,
     },
     {
       title: "Rejected Records",
-      value: stats?.compliance.rejected || 0,
+      value: stats?.compliance?.rejected || 0,
       bg: COLORS.ALERT_RED,
       icon: <AlertTriangle />,
     },
@@ -116,7 +119,7 @@ const DashboardPage: React.FC = () => {
               </p>
             </div>
             <div className="opacity-30">
-              {React.cloneElement(c.icon as React.ReactElement )}
+              {c.icon}
             </div>
           </div>
         ))}
@@ -132,9 +135,9 @@ const DashboardPage: React.FC = () => {
           <div className="h-[300px] w-full">
             {loading ? (
               <div className="h-full flex items-center justify-center">
-                <Loader2 className="animate-spin" />
+                <Loader2 className="animate-spin text-gray-400" />
               </div>
-            ) : (
+            ) : records.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
@@ -155,6 +158,7 @@ const DashboardPage: React.FC = () => {
                     stroke={COLORS.PRIMARY_GREEN}
                     strokeWidth={3}
                     dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
                   />
                   <Line
                     type="monotone"
@@ -163,9 +167,15 @@ const DashboardPage: React.FC = () => {
                     stroke={COLORS.ACCENT_GOLD}
                     strokeWidth={3}
                     dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
+            ) : (
+                <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                    <Activity size={40} className="mb-2 opacity-20" />
+                    <p>No data available for the chart</p>
+                </div>
             )}
           </div>
         </div>
@@ -186,12 +196,12 @@ const DashboardPage: React.FC = () => {
                     <AlertTriangle size={14} className="text-red-700" />
                   )}
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-800 line-clamp-1">{record.causeNo}</p>
-                  <p className="text-xs text-gray-500">{record.nameOfDeceased}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-800 truncate">{record.causeNo || "No Cause No."}</p>
+                  <p className="text-xs text-gray-500 truncate">{record.nameOfDeceased || "Unknown Deceased"}</p>
                   <p className="text-[10px] text-gray-400 mt-1 flex items-center">
                     <Clock size={10} className="mr-1" />
-                    {new Date(record.updatedAt).toLocaleDateString()}
+                    {record.updatedAt ? new Date(record.updatedAt).toLocaleDateString() : "N/A"}
                   </p>
                 </div>
               </div>
@@ -204,7 +214,7 @@ const DashboardPage: React.FC = () => {
       </div>
 
       {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-lg border border-red-200">
+        <div className="bg-red-50 text-red-700 p-4 rounded-lg border border-red-200 mt-4">
           ⚠️ {error}
         </div>
       )}

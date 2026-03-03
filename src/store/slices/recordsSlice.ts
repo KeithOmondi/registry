@@ -54,6 +54,7 @@ export interface AnalyticsSummary {
   nonCompliantCount: number;
   pendingForwarding: number;
   averageLeadTime: number;
+  complianceRate: number;
 }
 
 export interface CourtPerformance {
@@ -61,11 +62,14 @@ export interface CourtPerformance {
   courtName: string;
   count: number;
   complianceRate: number;
+  averageLeadTime: number; 
 }
 
 export interface AnalyticsData {
   summary: AnalyticsSummary[];
   courtPerformance: CourtPerformance[];
+  averageLeadTime: number;
+  complianceRate: number;
 }
 
 /* =======================
@@ -105,6 +109,9 @@ export interface RecordStats {
   gpStatus: { pending: number; published: number };
   kpiBreaches: number;
   averages: { receivingLeadTime: number; forwardingLeadTime: number };
+  summary: AnalyticsSummary | null;
+  courtPerformance: CourtPerformance[];
+  records: any[];
 }
 
 /* =======================
