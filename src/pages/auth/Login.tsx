@@ -13,19 +13,21 @@ export const Login: React.FC = () => {
   const {
     user,
     isAuthenticated,
-    status,
     otpSent,
     pjNumber,
   } = useSelector((state: RootState) => state.auth);
 
+  // Local States
   const [localPJ, setLocalPJ] = useState(pjNumber);
   const [otp, setOtp] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
-
-  const loading = status === "loading";
+  
+  // Specific loading states to prevent "Global Loading" layout shifts
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   /* ======================
-     REDIRECT
+      REDIRECT LOGIC
   ====================== */
   useEffect(() => {
     if (isAuthenticated && user && !hasRedirected.current) {
@@ -37,7 +39,7 @@ export const Login: React.FC = () => {
   }, [isAuthenticated, user, navigate]);
 
   /* ======================
-     OTP TIMER
+      OTP TIMER
   ====================== */
   useEffect(() => {
     if (!resendTimer) return;
@@ -48,7 +50,7 @@ export const Login: React.FC = () => {
   }, [resendTimer]);
 
   /* ======================
-     HANDLERS
+      HANDLERS
   ====================== */
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +61,7 @@ export const Login: React.FC = () => {
       return;
     }
 
+    setIsSendingOtp(true);
     try {
       await dispatch(login({ pjNumber: value })).unwrap();
       toast.success("OTP sent");
@@ -66,6 +69,8 @@ export const Login: React.FC = () => {
       setResendTimer(60);
     } catch (err) {
       toast.error(String(err));
+    } finally {
+      setIsSendingOtp(false);
     }
   };
 
@@ -78,29 +83,37 @@ export const Login: React.FC = () => {
       return;
     }
 
+    setIsVerifying(true);
     try {
-      const user = await dispatch(
+      const userData = await dispatch(
         verifyOtp({ pjNumber, otp: value }),
       ).unwrap();
-      toast.success(`Welcome back, ${user.firstName}`);
+      toast.success(`Welcome back, ${userData.firstName}`);
+      // Note: We don't set isVerifying to false here on success 
+      // to keep the loading state active until the redirect completes.
     } catch (err) {
       toast.error(String(err));
+      setIsVerifying(false);
     }
   };
 
   const handleResendOtp = async () => {
-    if (!pjNumber || loading || resendTimer) return;
+    if (!pjNumber || isSendingOtp || resendTimer) return;
+    
+    setIsSendingOtp(true);
     try {
       await dispatch(login({ pjNumber })).unwrap();
       toast.success("OTP resent");
       setResendTimer(60);
     } catch (err) {
       toast.error(String(err));
+    } finally {
+      setIsSendingOtp(false);
     }
   };
 
   /* ======================
-     RENDER
+      RENDER
   ====================== */
   return (
     <>
@@ -118,15 +131,16 @@ export const Login: React.FC = () => {
                 value={localPJ}
                 onChange={(e) => setLocalPJ(e.target.value)}
                 placeholder="PJ Number"
-                className="w-full border rounded-xl px-4 py-3"
+                className="w-full border rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#1a3a32]/20"
                 autoComplete="username"
+                disabled={isSendingOtp}
               />
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full bg-[#1a3a32] text-white py-3 rounded-xl font-semibold disabled:opacity-70"
+                disabled={isSendingOtp}
+                className="w-full bg-[#1a3a32] text-white py-3 rounded-xl font-semibold disabled:opacity-70 transition-all"
               >
-                {loading ? "Sending OTP…" : "Send OTP"}
+                {isSendingOtp ? "Sending OTP..." : "Send OTP"}
               </button>
             </form>
           ) : (
@@ -135,26 +149,30 @@ export const Login: React.FC = () => {
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
                 placeholder="Enter OTP"
-                className="w-full border rounded-xl px-4 py-3 tracking-widest"
+                className="w-full border rounded-xl px-4 py-3 tracking-widest focus:outline-none focus:ring-2 focus:ring-[#1a3a32]/20"
                 inputMode="numeric"
+                disabled={isVerifying}
               />
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full bg-[#1a3a32] text-white py-3 rounded-xl font-semibold disabled:opacity-70"
+                disabled={isVerifying}
+                className="w-full bg-[#1a3a32] text-white py-3 rounded-xl font-semibold disabled:opacity-70 transition-all"
               >
-                {loading ? "Verifying…" : "Verify OTP"}
+                {isVerifying ? "Verifying..." : "Verify OTP"}
               </button>
 
               <button
                 type="button"
                 onClick={handleResendOtp}
-                disabled={loading || resendTimer > 0}
-                className="w-full text-sm text-gray-600"
+                disabled={isVerifying || isSendingOtp || resendTimer > 0}
+                className="w-full text-sm text-gray-600 hover:text-gray-800 disabled:opacity-50 transition-colors"
               >
-                {resendTimer
-                  ? `Resend OTP in ${resendTimer}s`
-                  : "Resend OTP"}
+                {isSendingOtp 
+                  ? "Resending..." 
+                  : resendTimer 
+                    ? `Resend OTP in ${resendTimer}s` 
+                    : "Resend OTP"
+                }
               </button>
             </form>
           )}
