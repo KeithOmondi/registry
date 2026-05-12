@@ -39,6 +39,7 @@ import RecordsFormPage from "./pages/Gp/RecordsForm";
 
 /* ================= AUTH ================= */
 import { Login } from "./pages/auth/Login";
+import Analytics from "./pages/user/Analytics";
 
 /* ================================================= */
 
@@ -157,6 +158,17 @@ function App() {
             <ProtectedRoute>
               <UserLayout>
                 <ScansPage />
+              </UserLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/records/analytics"
+          element={
+            <ProtectedRoute>
+              <UserLayout>
+                <Analytics />
               </UserLayout>
             </ProtectedRoute>
           }

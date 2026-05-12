@@ -31,6 +31,15 @@ interface EditRecordProps {
   onClose: () => void;
 }
 
+interface ApiError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  message?: string;
+}
+
 const rejectionReasons = [
   "No Stamp or Seal/Note Dated",
   "Conflicting Case Number between the E Citizen Print Receipt and the Form 60 Notice",
@@ -45,7 +54,7 @@ const rejectionReasons = [
   "Same case number with two different petitioners and or deceased names",
   "Deputy registrar and or District Registrar name not typed",
   "Receipt mismatch/wrong receipt",
-  "Bankers’ cheques be addressed to Government Printers and not Kenya Gazette",
+  "Bankers' cheques be addressed to Government Printers and not Kenya Gazette",
   "Altered Form 60 Notice",
   "One deceased per petition",
   "Different Court Stations in one Form 60 notice",
@@ -63,34 +72,42 @@ const EditRecord: React.FC<EditRecordProps> = ({ record, onClose }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { courts } = useSelector((state: RootState) => state.courts);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     causeNo: record.causeNo,
     nameOfDeceased: record.nameOfDeceased,
     dateReceived: record.dateReceived?.split("T")[0] || "",
     dateOfReceipt: record.dateOfReceipt?.split("T")[0] || "",
     dateForwardedToGP: record.dateForwardedToGP?.split("T")[0] || "",
     form60Compliance: record.form60Compliance as Form60Compliance,
-    rejectionReason: record.rejectionReason || "",
+    // Only include rejectionReason if compliance is "Rejected"
+    rejectionReason: record.form60Compliance === "Rejected" ? (record.rejectionReason || "") : "",
     statusAtGP: record.statusAtGP as StatusAtGP,
     courtId: record.courtStation?._id || "",
-  });
+  }));
 
   useEffect(() => {
     if (courts.length === 0) dispatch(fetchCourts());
   }, [dispatch, courts.length]);
 
-  useEffect(() => {
-    if (formData.form60Compliance !== "Rejected") {
-      setFormData((prev) => ({ ...prev, rejectionReason: "" }));
-    }
-  }, [formData.form60Compliance]);
-
   const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  e: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+) => {
+  const { name, value } = e.target;
+  
+  // Handle rejectionReason clearing directly during the state update
+  if (name === "form60Compliance" && value !== "Rejected") {
+    setFormData((prev) => ({ 
+      ...prev, 
+      form60Compliance: value as Form60Compliance, 
+      rejectionReason: "" 
+    }));
+  } else {
+    setFormData((prev) => ({ 
+      ...prev, 
+      [name]: value 
+    } as typeof prev));
+  }
+};
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -115,7 +132,10 @@ const EditRecord: React.FC<EditRecordProps> = ({ record, onClose }) => {
         toast.success("✅ Record updated successfully.");
         onClose();
       })
-      .catch((err: string) => toast.error(err));
+      .catch((err: unknown) => {
+        const error = err as ApiError;
+        toast.error(error.message || "Failed to update record");
+      });
   };
 
   const labelStyle = "flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2";

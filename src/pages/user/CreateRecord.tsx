@@ -8,7 +8,7 @@ import {
   type Form60Compliance,
 } from "../../store/slices/recordsSlice";
 import { fetchCourts } from "../../store/slices/courtsSlice";
-import Select from "react-select";
+import Select, { type GroupBase, type StylesConfig } from "react-select";
 import toast, { Toaster } from "react-hot-toast";
 
 /* ================================
@@ -29,7 +29,7 @@ const rejectionReasons = [
   "Same case number with two different petitioners and or deceased names",
   "Deputy registrar and or District Registrar name not typed",
   "Receipt mismatch/wrong receipt",
-  "Bankers’ cheques be addressed to Government Printers and not Kenya Gazette",
+  "Bankers' cheques be addressed to Government Printers and not Kenya Gazette",
   "Altered Form 60 Notice",
   "One deceased per petition",
   "Different Court Stations in one Form 60 notice",
@@ -41,10 +41,25 @@ const rejectionReasons = [
   "FORM 60 missing",
   "Two Deceased in one Form 60",
   "Kindly confirm the deceased name",
+   "Place of death not indicated"
 ];
 
-const selectStyles = {
-  control: (base: any, state: any) => ({
+interface SelectOption {
+  value: Court;
+  label: string;
+}
+
+interface RejectionOption {
+  value: string;
+  label: string;
+}
+
+interface SelectState {
+  isFocused: boolean;
+}
+
+const selectStyles: StylesConfig<SelectOption, false, GroupBase<SelectOption>> = {
+  control: (base, state: SelectState) => ({
     ...base,
     borderRadius: "0.75rem",
     padding: "3px",
@@ -54,7 +69,7 @@ const selectStyles = {
     fontSize: "0.875rem",
     backgroundColor: "white",
   }),
-  option: (base: any, state: any) => ({
+  option: (base, state) => ({
     ...base,
     backgroundColor: state.isSelected
       ? "#1a3a32"
@@ -71,6 +86,17 @@ const inputClass =
   "w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm";
 const labelClass =
   "text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1 mb-1 block";
+
+// Helper function to calculate lead time
+const calculateLeadTime = (dateReceived: string, dateOfReceipt: string): number => {
+  if (!dateReceived) return 0;
+  const start = new Date(dateReceived);
+  if (isNaN(start.getTime())) return 0;
+  if (!dateOfReceipt) return 0;
+  const end = new Date(dateOfReceipt);
+  if (isNaN(end.getTime())) return 0;
+  return Math.max(0, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+};
 
 /* ================================
    COMPONENT
@@ -94,8 +120,13 @@ const CreateRecordPage: React.FC = () => {
     form60Compliance: "Approved" as Form60Compliance,
     rejectionReason: "",
     customRejection: "",
-    leadTime: 0,
   });
+
+  // Calculate lead time directly during render
+  const leadTime = useMemo(
+    () => calculateLeadTime(formData.dateReceived, formData.dateOfReceipt),
+    [formData.dateReceived, formData.dateOfReceipt]
+  );
 
   useEffect(() => {
     if (!courts.length) dispatch(fetchCourts());
@@ -105,24 +136,6 @@ const CreateRecordPage: React.FC = () => {
     () => courts.map((c) => ({ value: c, label: c.name })),
     [courts],
   );
-
-  // Calculation for Lead Time Visibility
-  useEffect(() => {
-    if (!formData.dateReceived) return;
-    const start = new Date(formData.dateReceived);
-    if (isNaN(start.getTime())) return;
-    let diff = 0;
-    if (formData.dateOfReceipt) {
-      const end = new Date(formData.dateOfReceipt);
-      if (!isNaN(end.getTime())) {
-        diff = Math.max(
-          0,
-          Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
-        );
-      }
-    }
-    setFormData((p) => ({ ...p, leadTime: diff }));
-  }, [formData.dateReceived, formData.dateOfReceipt]);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -188,7 +201,6 @@ const CreateRecordPage: React.FC = () => {
         form60Compliance: "Approved",
         rejectionReason: "",
         customRejection: "",
-        leadTime: 0,
       });
     } catch {
       toast.error("❌ Failed to create record");
@@ -198,6 +210,11 @@ const CreateRecordPage: React.FC = () => {
   useEffect(() => {
     if (error) toast.error(error);
   }, [error]);
+
+  const rejectionOptions: RejectionOption[] = [
+    ...rejectionReasons.map((r) => ({ value: r, label: r })),
+    { value: "Other", label: "Other (Manual Entry)" },
+  ];
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] py-12 px-4">
@@ -223,7 +240,7 @@ const CreateRecordPage: React.FC = () => {
               {/* Station Selection */}
               <div className="md:col-span-2">
                 <label className={labelClass}>Court Station *</label>
-                <Select
+                <Select<SelectOption>
                   options={courtOptions}
                   styles={selectStyles}
                   isLoading={courtsLoading}
@@ -236,7 +253,7 @@ const CreateRecordPage: React.FC = () => {
                         }
                       : null
                   }
-                  onChange={(opt) =>
+                  onChange={(opt: SelectOption | null) =>
                     setFormData((p) => ({
                       ...p,
                       courtStation: opt ? opt.value : null,
@@ -298,20 +315,20 @@ const CreateRecordPage: React.FC = () => {
                 />
               </div>
 
-              {/* KPI Alert Section */}
+              {/* KPI Alert Section - Now using calculated leadTime */}
               <div className="md:col-span-1">
                 <label className={labelClass}>Lead Time Benchmark</label>
                 <div
                   className={`px-4 py-2.5 rounded-xl border flex items-center justify-between transition-all ${
-                    formData.leadTime > 30
+                    leadTime > 30
                       ? "bg-red-50 border-red-200 text-red-700 shadow-inner"
                       : "bg-slate-50 border-slate-200 text-slate-600"
                   }`}
                 >
                   <span className="text-sm font-bold">
-                    {formData.leadTime} Days
+                    {leadTime} Days
                   </span>
-                  {formData.leadTime > 30 && (
+                  {leadTime > 30 && (
                     <span className="text-[9px] font-black bg-red-600 text-white px-2 py-0.5 rounded-full uppercase">
                       KPI Delay
                     </span>
@@ -365,13 +382,10 @@ const CreateRecordPage: React.FC = () => {
                 <label className="text-[10px] font-black uppercase tracking-wider text-red-600 block">
                   Primary Rejection Reason
                 </label>
-                <Select
-                  styles={selectStyles}
-                  options={[
-                    ...rejectionReasons.map((r) => ({ value: r, label: r })),
-                    { value: "Other", label: "Other (Manual Entry)" },
-                  ]}
-                  onChange={(opt) =>
+                <Select<RejectionOption>
+                  styles={selectStyles as StylesConfig<RejectionOption>}
+                  options={rejectionOptions}
+                  onChange={(opt: RejectionOption | null) =>
                     setFormData((p) => ({
                       ...p,
                       rejectionReason: opt?.value || "",

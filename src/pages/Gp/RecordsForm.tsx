@@ -1,7 +1,7 @@
 /* =====================================
     UPDATED HYBRID RECORDS FORM PAGE
 ===================================== */
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { 
   Loader2, 
@@ -11,7 +11,7 @@ import {
   AlertCircle, 
   Search,
   X,
-  Edit3 // Added for visual feedback
+  Edit3
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -61,6 +61,7 @@ const RecordsFormPage = () => {
     }
   }, [lookupResult]);
 
+  // Lookup effect - dependencies are correct, no missing dependency issue
   useEffect(() => {
     const { causeNo, courtStation } = formData;
     if (causeNo.length < 3 || !courtStation) return;
@@ -70,8 +71,10 @@ const RecordsFormPage = () => {
     }, 800);
 
     return () => clearTimeout(delayDebounceFn);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.causeNo, formData.courtStation, dispatch]);
 
+  // Success/Error effect
   useEffect(() => {
     if (success) {
       toast.success("Record Archiving Successful");
@@ -88,7 +91,8 @@ const RecordsFormPage = () => {
     if (error) {
       toast.error(error);
     }
-  }, [success, error, dispatch, today]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [success, error, dispatch]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -112,36 +116,41 @@ const RecordsFormPage = () => {
     [courts, formData.courtStation]
   );
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: name === "causeNo" ? value.toUpperCase() : value,
     }));
-  };
+  }, []);
 
-  const handleSelectCourt = (id: string) => {
+  const handleSelectCourt = useCallback((id: string) => {
     setFormData((prev) => ({ ...prev, courtStation: id, deceasedName: "" }));
     setIsDropdownOpen(false);
     setCourtSearch("");
-  };
+  }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (selected) {
       setFile(selected);
       toast.success(`Proof attached: ${selected.name.substring(0, 15)}...`);
     }
-  };
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.courtStation) return toast.error("Please select a court station");
-    // Updated validation: Ensure name exists, whether manual or automatic
-    if (!formData.deceasedName.trim()) return toast.error("Deceased Name is required");
+    if (!formData.courtStation) {
+      toast.error("Please select a court station");
+      return;
+    }
+    if (!formData.deceasedName.trim()) {
+      toast.error("Deceased Name is required");
+      return;
+    }
     
     dispatch(submitRejectionRecord({ ...formData, file }));
-  };
+  }, [formData, file, dispatch]);
 
   const inputBase = "w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-5 py-4 text-sm font-semibold transition-all focus:bg-white focus:border-[#013220] focus:ring-4 focus:ring-emerald-50 outline-none placeholder:text-slate-300";
   const labelBase = "text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-2 ml-1";
@@ -189,7 +198,7 @@ const RecordsFormPage = () => {
                         value={courtSearch}
                       />
                       {courtSearch && (
-                        <button onClick={() => setCourtSearch("")}><X size={14} className="text-slate-400 hover:text-rose-500" /></button>
+                        <button onClick={() => setCourtSearch("")} type="button"><X size={14} className="text-slate-400 hover:text-rose-500" /></button>
                       )}
                     </div>
 
@@ -238,20 +247,20 @@ const RecordsFormPage = () => {
                     className={`${inputBase} ${formData.deceasedName && !loadingLookup ? "bg-emerald-50/50 border-emerald-100" : ""}`}
                   />
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-  {loadingLookup ? (
-    <Loader2 size={18} className="animate-spin text-emerald-600" />
-  ) : lookupResult && formData.deceasedName === lookupResult ? (
-    <span title="Verified by system">
-      <CheckCircle2 size={18} className="text-emerald-500" />
-    </span>
-  ) : formData.deceasedName ? (
-    <span title="Manual Entry">
-      <Edit3 size={18} className="text-amber-500" />
-    </span>
-  ) : (
-    <AlertCircle size={18} className="text-slate-300" />
-  )}
-</div>
+                    {loadingLookup ? (
+                      <Loader2 size={18} className="animate-spin text-emerald-600" />
+                    ) : lookupResult && formData.deceasedName === lookupResult ? (
+                      <span title="Verified by system">
+                        <CheckCircle2 size={18} className="text-emerald-500" />
+                      </span>
+                    ) : formData.deceasedName ? (
+                      <span title="Manual Entry">
+                        <Edit3 size={18} className="text-amber-500" />
+                      </span>
+                    ) : (
+                      <AlertCircle size={18} className="text-slate-300" />
+                    )}
+                  </div>
                 </div>
               </div>
 

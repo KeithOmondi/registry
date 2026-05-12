@@ -13,12 +13,31 @@ import {
 } from "recharts";
 import { fetchAnalytics } from "../../store/slices/recordsSlice";
 
+// Define strict interfaces for the component
+interface CourtPerformance {
+  courtName: string;
+  count: number;
+  complianceRate: number;
+}
+
+interface AnalyticsSummary {
+  totalRecords: number;
+  compliantCount: number;
+  pendingForwarding: number;
+  averageLeadTime: number;
+}
+
 export const AdminDashboardPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const [selectedStation, setSelectedStation] = useState("all");
+  const [selectedStation, setSelectedStation] = useState<string>("all");
 
+  // Type-safe selection from Redux
   const { summary, courtPerformance, loading } = useSelector(
-    (state: RootState) => state.records,
+    (state: RootState) => state.records as { 
+      summary: AnalyticsSummary | null; 
+      courtPerformance: CourtPerformance[]; 
+      loading: boolean 
+    },
   );
 
   useEffect(() => {
@@ -79,7 +98,7 @@ export const AdminDashboardPage: React.FC = () => {
         <div className="relative inline-block w-full md:w-72">
           <select 
             value={selectedStation}
-            onChange={(e) => setSelectedStation(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedStation(e.target.value)}
             className="w-full appearance-none bg-white border border-slate-200 text-[#1a3a32] text-[10px] font-black uppercase tracking-widest py-3 px-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all cursor-pointer shadow-sm"
           >
             <option value="all">Showing: All Court Stations</option>
@@ -99,7 +118,7 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* KPI Cards Row - Responsive grid for 5 cards */}
+          {/* KPI Cards Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {stats.map((stat, idx) => (
               <div key={idx} className="bg-white p-5 rounded-[1.5rem] border border-slate-200 shadow-sm relative group transition-all hover:shadow-md">
@@ -144,11 +163,22 @@ export const AdminDashboardPage: React.FC = () => {
                     />
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: "#64748b" }} />
                     
-                    <Tooltip 
-                      cursor={{ fill: "#f8fafc" }} 
-                      formatter={(value: any) => [`${value} Files`, "Record Volume"]}
-                      contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)", textTransform: "uppercase", fontSize: "10px", fontWeight: "900" }} 
-                    />
+                 <Tooltip 
+  cursor={{ fill: "#f8fafc" }} 
+  // We explicitly type the formatter using the Tooltip's own internal Props definition
+  formatter={((value: number | string | (number | string)[] | undefined) => {
+    const formattedValue = Number(value || 0).toLocaleString();
+    return [`${formattedValue} Files`, "Record Volume"];
+  }) as React.ComponentProps<typeof Tooltip>['formatter']}
+  contentStyle={{ 
+    borderRadius: "12px", 
+    border: "none", 
+    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)", 
+    textTransform: "uppercase", 
+    fontSize: "10px", 
+    fontWeight: "900" 
+  }} 
+/>
                     
                     <Bar dataKey="count" radius={[4, 4, 0, 0]} barSize={32}>
                       {courtPerformance.map((_, index) => (
@@ -180,7 +210,7 @@ export const AdminDashboardPage: React.FC = () => {
                 <h3 className="text-[11px] md:text-sm font-black text-[#1a3a32] uppercase tracking-widest mb-6">Station Accuracy</h3>
                 <div className="space-y-6">
                   {courtPerformance?.length > 0 ? (
-                    courtPerformance.slice(0, 5).map((court, i) => (
+                    courtPerformance.slice(0, 5).map((court: CourtPerformance, i: number) => (
                       <div key={i} className="flex flex-col gap-2">
                         <div className="flex justify-between items-center">
                           <span className="text-[10px] font-black text-slate-500 uppercase truncate pr-4">{court.courtName}</span>

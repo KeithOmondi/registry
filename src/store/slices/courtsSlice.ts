@@ -62,15 +62,14 @@ export const fetchCourts = createAsyncThunk<Court[], void, { rejectValue: string
       const res = await api.get("/courts/get");
       // API returns { status, results, data: [...] }
       return Array.isArray(res.data.data) ? res.data.data : [];
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
       return rejectWithValue(
-        err.response?.data?.message || err.message || "Failed to fetch courts"
+        error.response?.data?.message || error.message || "Failed to fetch courts"
       );
     }
   }
 );
-
-
 
 // Create court
 export const createCourt = createAsyncThunk<
@@ -81,9 +80,10 @@ export const createCourt = createAsyncThunk<
   try {
     const res = await api.post("/courts/create", payload);
     return res.data.court ?? res.data;
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const error = err as { response?: { data?: { message?: string } }; message?: string };
     return rejectWithValue(
-      err.response?.data?.message || err.message || "Failed to create court"
+      error.response?.data?.message || error.message || "Failed to create court"
     );
   }
 });
@@ -97,9 +97,10 @@ export const updateCourt = createAsyncThunk<
   try {
     const res = await api.put(`/courts/update/${id}`, data);
     return res.data.court ?? res.data;
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const error = err as { response?: { data?: { message?: string } }; message?: string };
     return rejectWithValue(
-      err.response?.data?.message || err.message || "Failed to update court"
+      error.response?.data?.message || error.message || "Failed to update court"
     );
   }
 });
@@ -113,9 +114,10 @@ export const deleteCourt = createAsyncThunk<
   try {
     await api.delete(`/courts/delete/${id}`);
     return id;
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const error = err as { response?: { data?: { message?: string } }; message?: string };
     return rejectWithValue(
-      err.response?.data?.message || err.message || "Failed to delete court"
+      error.response?.data?.message || error.message || "Failed to delete court"
     );
   }
 });

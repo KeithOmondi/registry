@@ -48,9 +48,10 @@ export const fetchMyProfile = createAsyncThunk(
       // If your backend nests data under a 'data' key, use response.data.data
       // If it's direct, just use response.data
       return response.data.data || response.data;
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
       return rejectWithValue(
-        err.response?.data?.message || "Failed to fetch profile",
+        error.response?.data?.message || "Failed to fetch profile",
       );
     }
   },
@@ -65,9 +66,10 @@ export const fetchAllUsers = createAsyncThunk(
       // response.data is the WHOLE JSON { status, results, data }
       // response.data.data is just the Array [user1, user2...]
       return response.data.data;
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
       return rejectWithValue(
-        err.response?.data?.message || "Failed to fetch users",
+        error.response?.data?.message || "Failed to fetch users",
       );
     }
   },
@@ -81,9 +83,10 @@ export const toggleUserStatus = createAsyncThunk(
       // Updated to match the '/toggle-status/:id' convention
       const response = await api.patch(`/user/toggle-status/${userId}`);
       return response.data.data;
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
       return rejectWithValue(
-        err.response?.data?.message || "Failed to update status",
+        error.response?.data?.message || "Failed to update status",
       );
     }
   },

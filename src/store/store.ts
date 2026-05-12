@@ -6,6 +6,7 @@ import reportsReducer from "./slices/reportsSlice"
 import userReducer from "./slices/userSlice";
 import gazetteReducer from "./slices/gazetteSlice";
 import gpReducer from "./slices/gpSlice"
+import analyticsReducer from "./slices/analyticsSlice"
 
 export const store = configureStore({
   reducer: {
@@ -15,7 +16,8 @@ export const store = configureStore({
     reports: reportsReducer,
     user: userReducer,
     gazette: gazetteReducer,
-    gp: gpReducer
+    gp: gpReducer,
+    analytics: analyticsReducer,
   },
 });
 

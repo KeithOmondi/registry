@@ -19,7 +19,7 @@ export interface RecordItem {
   deceasedName: string;
   rejectionReason: string;
   dateReceived: string;
-  fileUrl: | null;
+  fileUrl: string | null;
   status: RejectionStatus;
   updatedBy: {
     _id: string;
@@ -43,7 +43,7 @@ export interface GpDashboard {
 }
 
 interface GpState {
-  profile: any | null;
+  profile: unknown | null;
   dashboard: GpDashboard | null;
   adminRecords: RecordItem[];
   currentRecord: RecordItem | null;
@@ -84,8 +84,9 @@ export const fetchProxyPreview = createAsyncThunk<
       responseType: "blob",
     });
     return URL.createObjectURL(response.data);
-  } catch (err: any) {
-    return rejectWithValue("Failed to generate secure preview");
+  } catch (err: unknown) {
+    const error = err as { response?: { data?: { message?: string } }; message?: string };
+    return rejectWithValue(error.response?.data?.message || "Failed to generate secure preview");
   }
 });
 
@@ -97,8 +98,9 @@ export const fetchAllRecordsForAdmin = createAsyncThunk<
   try {
     const { data } = await api.get("/gp/admin/all-records");
     return data;
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || "Admin fetch failed");
+  } catch (err: unknown) {
+    const error = err as { response?: { data?: { message?: string } }; message?: string };
+    return rejectWithValue(error.response?.data?.message || "Admin fetch failed");
   }
 });
 
@@ -110,8 +112,9 @@ export const fetchGpDashboard = createAsyncThunk<
   try {
     const { data } = await api.get("/gp/dashboard");
     return data as GpDashboard;
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || "Failed to load dashboard");
+  } catch (err: unknown) {
+    const error = err as { response?: { data?: { message?: string } }; message?: string };
+    return rejectWithValue(error.response?.data?.message || "Failed to load dashboard");
   }
 });
 
@@ -123,8 +126,9 @@ export const fetchRecordById = createAsyncThunk<
   try {
     const { data } = await api.get(`/gp/${id}`);
     return data;
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || "Failed to fetch record");
+  } catch (err: unknown) {
+    const error = err as { response?: { data?: { message?: string } }; message?: string };
+    return rejectWithValue(error.response?.data?.message || "Failed to fetch record");
   }
 });
 
@@ -147,10 +151,11 @@ export const lookupDeceasedName = createAsyncThunk<
 
     // Backend returns { deceasedName: "..." }
     return data.deceasedName;
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const error = err as { response?: { data?: { message?: string } }; message?: string };
     // If the backend returns a 404, we want that specific message
     return rejectWithValue(
-      err.response?.data?.message || "Record not found in court DB"
+      error.response?.data?.message || "Record not found in court DB"
     );
   }
 });
@@ -177,7 +182,7 @@ export const submitRejectionRecord = createAsyncThunk<
       }
     });
 
-    // ✅ Only append file if it's not null
+    // Only append file when it exists (not null)
     if (payload.file) {
       formData.append("file", payload.file);
     }
@@ -189,9 +194,10 @@ export const submitRejectionRecord = createAsyncThunk<
     });
 
     return data.data as RecordItem;
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const error = err as { response?: { data?: { message?: string } }; message?: string };
     return rejectWithValue(
-      err.response?.data?.message || "Submission failed"
+      error.response?.data?.message || "Submission failed"
     );
   }
 });
@@ -204,19 +210,21 @@ export const updateRejectionRecord = createAsyncThunk<
   try {
     const { data } = await api.put(`/gp/update/${id}`, updates);
     return data;
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || "Update failed");
+  } catch (err: unknown) {
+    const error = err as { response?: { data?: { message?: string } }; message?: string };
+    return rejectWithValue(error.response?.data?.message || "Update failed");
   }
 });
 
-export const fetchGpProfile = createAsyncThunk<any, void, { rejectValue: string }>(
+export const fetchGpProfile = createAsyncThunk<unknown, void, { rejectValue: string }>(
   "gp/fetchProfile",
   async (_, { rejectWithValue }) => {
     try {
       const { data } = await api.get("/gp/profile");
       return data;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || "Failed to fetch profile");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch profile");
     }
   }
 );

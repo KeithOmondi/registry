@@ -111,7 +111,7 @@ export interface RecordStats {
   averages: { receivingLeadTime: number; forwardingLeadTime: number };
   summary: AnalyticsSummary | null;
   courtPerformance: CourtPerformance[];
-  records: any[];
+  records: unknown[];
 }
 
 /* =======================
@@ -138,8 +138,9 @@ export const fetchRecords = createAsyncThunk<Record[]>(
     try {
       const res = await api.get("/records/get");
       return res.data.records;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(error.response?.data?.message || error.message);
     }
   },
 );
@@ -152,9 +153,10 @@ export const fetchAnalytics = createAsyncThunk<
   try {
     const res = await api.get(`/records/analytics?courtId=${courtId}`);
     return res.data.data;
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const error = err as { response?: { data?: { message?: string } }; message?: string };
     return rejectWithValue(
-      err.response?.data?.message || "Failed to fetch analytics",
+      error.response?.data?.message || "Failed to fetch analytics",
     );
   }
 });
@@ -165,8 +167,9 @@ export const fetchRecordById = createAsyncThunk<Record, string>(
     try {
       const res = await api.get(`/records/get/${id}`);
       return res.data;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(error.response?.data?.message || error.message);
     }
   },
 );
@@ -177,8 +180,9 @@ export const createRecord = createAsyncThunk<Record, CreateRecordPayload>(
     try {
       const res = await api.post("/records/create", payload);
       return res.data;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(error.response?.data?.message || error.message);
     }
   },
 );
@@ -189,8 +193,9 @@ export const updateRecord = createAsyncThunk<Record, UpdateRecordPayload>(
     try {
       const res = await api.put(`/records/update/${id}`, data);
       return res.data;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(error.response?.data?.message || error.message);
     }
   },
 );
@@ -201,8 +206,9 @@ export const deleteRecord = createAsyncThunk<string, string>(
     try {
       await api.delete(`/records/delete/${id}`);
       return id;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(error.response?.data?.message || error.message);
     }
   },
 );
@@ -213,8 +219,9 @@ export const fetchRecordStats = createAsyncThunk<RecordStats>(
     try {
       const res = await api.get("/records/stats");
       return res.data.stats;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(error.response?.data?.message || error.message);
     }
   },
 );
@@ -229,8 +236,9 @@ export const updateMultipleRecordsDateForwarded = createAsyncThunk<
       payload,
     );
     return res.data;
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || err.message);
+  } catch (err: unknown) {
+    const error = err as { response?: { data?: { message?: string } }; message?: string };
+    return rejectWithValue(error.response?.data?.message || error.message);
   }
 });
 

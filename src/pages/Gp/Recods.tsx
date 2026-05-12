@@ -16,13 +16,13 @@ import {
 import { fetchGpDashboard } from "../../store/slices/gpSlice";
 import type { AppDispatch, RootState } from "../../store/store";
 
+type FilterType = "ALL" | "REJECTED" | "RECTIFIED";
+
 const RecordsPage = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { dashboard, loading } = useSelector((state: RootState) => state.gp);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilter, setActiveFilter] = useState<
-    "ALL" | "REJECTED" | "RECTIFIED"
-  >("ALL");
+  const [activeFilter, setActiveFilter] = useState<FilterType>("ALL");
 
   useEffect(() => {
     dispatch(fetchGpDashboard());
@@ -37,12 +37,12 @@ const RecordsPage = () => {
       record.deceasedName?.toLowerCase().includes(searchStr) ||
       record.courtStation?.name?.toLowerCase().includes(searchStr);
 
-    const statusMap: Record<string, string> = {
+    const statusMap: Record<string, FilterType> = {
       pending: "REJECTED",
       rectified: "RECTIFIED",
     };
-    const recordStatus =
-      statusMap[record.status] || record.status.toUpperCase();
+    const recordStatus: FilterType =
+      statusMap[record.status] || (record.status.toUpperCase() as FilterType);
 
     const matchesFilter =
       activeFilter === "ALL" || recordStatus === activeFilter;
@@ -60,6 +60,15 @@ const RecordsPage = () => {
       </div>
     );
   }
+
+  const handleFilterChange = (tab: FilterType) => {
+    setActiveFilter(tab);
+  };
+
+  const handleExportCSV = () => {
+    // Export functionality would go here
+    console.log("Export CSV clicked");
+  };
 
   return (
     <div className="max-w-[1200px] mx-auto p-4 md:p-8 space-y-8">
@@ -89,7 +98,11 @@ const RecordsPage = () => {
             />
           </div>
 
-          <button className="flex items-center gap-2 px-5 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg">
+          <button 
+            type="button"
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 px-5 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg"
+          >
             <Download size={14} /> Export CSV
           </button>
         </div>
@@ -97,10 +110,11 @@ const RecordsPage = () => {
 
       {/* FILTER TABS */}
       <div className="flex items-center gap-2 border-b border-slate-100 pb-1">
-        {["ALL", "REJECTED", "RECTIFIED"].map((tab) => (
+        {(["ALL", "REJECTED", "RECTIFIED"] as const).map((tab) => (
           <button
             key={tab}
-            onClick={() => setActiveFilter(tab as any)}
+            type="button"
+            onClick={() => handleFilterChange(tab)}
             className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all relative
               ${activeFilter === tab ? "text-rose-700" : "text-slate-400 hover:text-slate-600"}`}
           >
@@ -124,17 +138,17 @@ const RecordsPage = () => {
                 <th className="px-8 py-5">Compliance Breach</th>
                 <th className="px-8 py-5">Proof Status</th>
                 <th className="px-8 py-5 text-center">Archive Status</th>
-              </tr>
+               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {filteredRecords.length > 0 ? (
                 filteredRecords.map((record) => {
-                  const statusMap: Record<string, string> = {
+                  const statusMap: Record<string, FilterType> = {
                     pending: "REJECTED",
                     rectified: "RECTIFIED",
                   };
-                  const recordStatus =
-                    statusMap[record.status] || record.status.toUpperCase();
+                  const recordStatus: FilterType =
+                    statusMap[record.status] || (record.status.toUpperCase() as FilterType);
 
                   return (
                     <tr
@@ -211,7 +225,7 @@ const RecordsPage = () => {
                         </div>
                       </td>
 
-                      {/* Proof Status (NEW - Replaces the external link column) */}
+                      {/* Proof Status */}
                       <td className="px-8 py-6">
                         {record.fileUrl ? (
                           <a

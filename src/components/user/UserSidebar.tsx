@@ -4,6 +4,7 @@ import {
   LayoutDashboard, FileStack, PlusCircle, 
   Clock, ScanLine, BarChart3
 } from "lucide-react";
+import { BsFileBarGraph } from "react-icons/bs";
 
 const menuItems = [
   { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={20} /> },
@@ -12,6 +13,7 @@ const menuItems = [
   { name: "Not Forwarded", path: "/records/gp", icon: <Clock size={20} /> },
   { name: "Scanned Records", path: "/records/scans", icon: <ScanLine size={20} /> },
   { name: "Reports", path: "/records/reports", icon: <BarChart3 size={20} /> },
+  { name: "Analytics", path: "/records/analytics", icon: <BsFileBarGraph size={20} /> },
 ];
 
 interface UserSidebarProps {

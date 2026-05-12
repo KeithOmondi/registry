@@ -23,6 +23,16 @@ import {
   AlertCircle,
 } from "lucide-react";
 
+// Define error type
+interface ApiError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  message?: string;
+}
+
 const RecordPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { records = [] } = useSelector((state: RootState) => state.records);
@@ -65,7 +75,10 @@ const RecordPage: React.FC = () => {
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
 
   const handleBulkUpdate = async () => {
-    if (!bulkDate) return toast.error("Please select a date");
+    if (!bulkDate) {
+      toast.error("Please select a date");
+      return;
+    }
     try {
       await dispatch(
         updateMultipleRecordsDateForwarded({
@@ -76,8 +89,9 @@ const RecordPage: React.FC = () => {
       toast.success("Batch updated successfully");
       setSelectedIds([]);
       setBulkDate("");
-    } catch (err: any) {
-      toast.error(err);
+    } catch (err: unknown) {
+      const error = err as ApiError;
+      toast.error(error.message || "Failed to update records");
     }
   };
 

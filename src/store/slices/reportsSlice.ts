@@ -45,8 +45,9 @@ export const fetchRecords = createAsyncThunk<Record[]>(
     try {
       const res = await api.get("/records/get");
       return res.data.records;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(error.response?.data?.message || error.message);
     }
   },
 );
@@ -57,8 +58,9 @@ export const fetchRecordStats = createAsyncThunk<RecordStats>(
     try {
       const res = await api.get("/records/stats");
       return res.data.data.summary[0]; // Matches updated controller
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || err.message);
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(error.response?.data?.message || error.message);
     }
   },
 );

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { 
   Clock, 
@@ -13,17 +13,34 @@ import {
 import type { AppDispatch, RootState } from "../../store/store";
 import { fetchGpDashboard, REJECTION_STATUS } from "../../store/slices/gpSlice";
 
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  trend: string;
+  isPrimary?: boolean;
+  isWarning?: boolean;
+}
+
+interface Stats {
+  total: number;
+  pending: number;
+  health: number;
+  monthlyIntake: number;
+}
+
 const GpDashboard = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { dashboard, loading } = useSelector((state: RootState) => state.gp);
   const records = useMemo(() => dashboard?.records || [], [dashboard]);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     dispatch(fetchGpDashboard());
   }, [dispatch]);
 
   // Executive Stats Calculation
-  const stats = useMemo(() => {
+  const stats = useMemo<Stats>(() => {
     const total = records.length;
     const pending = records.filter(r => r.status === REJECTION_STATUS.PENDING).length;
     const health = total > 0 ? Math.round(((total - pending) / total) * 100) : 100;
@@ -33,6 +50,14 @@ const GpDashboard = () => {
 
     return { total, pending, health, monthlyIntake };
   }, [records]);
+
+  // Filter records based on search term
+  const filteredRecords = useMemo(() => {
+    if (!searchTerm) return records;
+    return records.filter(record => 
+      record.causeNo.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [records, searchTerm]);
 
   if (loading && !dashboard) {
     return (
@@ -121,6 +146,8 @@ const GpDashboard = () => {
             <input 
               type="text" 
               placeholder="Filter by Cause No..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-bold outline-none focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-500 transition-all"
             />
           </div>
@@ -136,22 +163,24 @@ const GpDashboard = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {records.length === 0 ? (
+              {filteredRecords.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="px-8 py-20 text-center">
                     <div className="flex flex-col items-center opacity-20">
                       <Layers size={64} className="mb-4" />
-                      <p className="text-sm font-black uppercase tracking-widest">No Active Rejections Found</p>
+                      <p className="text-sm font-black uppercase tracking-widest">
+                        {searchTerm ? "No matching records found" : "No Active Rejections Found"}
+                      </p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                records.map((record) => (
+                filteredRecords.map((record) => (
                   <tr key={record._id} className="group hover:bg-slate-50/80 transition-all cursor-default">
                     <td className="px-8 py-6">
                       <div className="flex items-center gap-4">
                          <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 shadow-sm flex items-center justify-center text-[#013220] font-black text-xs group-hover:scale-110 transition-transform">
-                            {record.causeNo.substring(0,1)}
+                            {record.causeNo.substring(0, 1)}
                          </div>
                          <div>
                             <p className="text-sm font-black text-slate-800 tracking-tight">{record.causeNo}</p>
@@ -187,7 +216,7 @@ const GpDashboard = () => {
   );
 };
 
-const StatCard = ({ title, value, icon, trend, isPrimary, isWarning }: any) => (
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon, trend, isPrimary, isWarning }) => (
   <div className={`relative overflow-hidden bg-white rounded-[2rem] p-8 border border-slate-100 shadow-xl shadow-slate-200/40 transition-all hover:-translate-y-1
     ${isPrimary ? "ring-2 ring-[#013220]/5" : ""}`}>
     

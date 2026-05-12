@@ -8,6 +8,16 @@ import {
 } from "../../store/slices/recordsSlice";
 import { fetchCourts } from "../../store/slices/courtsSlice";
 
+// Define error type
+interface ApiError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  message?: string;
+}
+
 const NotForwardedPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
 
@@ -66,8 +76,14 @@ const NotForwardedPage: React.FC = () => {
   };
 
   const handleBulkUpdate = async () => {
-    if (!bulkDate) return toast.error("⚠️ Please select a date");
-    if (!selectedIds.length) return toast.error("⚠️ No records selected");
+    if (!bulkDate) {
+      toast.error("⚠️ Please select a date");
+      return;
+    }
+    if (!selectedIds.length) {
+      toast.error("⚠️ No records selected");
+      return;
+    }
 
     try {
       await dispatch(
@@ -79,8 +95,9 @@ const NotForwardedPage: React.FC = () => {
       toast.success(`✅ Successfully forwarded ${selectedIds.length} records`);
       setSelectedIds([]);
       setBulkDate("");
-    } catch (err: any) {
-      toast.error(err || "Failed to update records");
+    } catch (err: unknown) {
+      const error = err as ApiError;
+      toast.error(error.message || "Failed to update records");
     }
   };
 

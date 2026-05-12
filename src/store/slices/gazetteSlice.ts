@@ -66,8 +66,9 @@ export const scanGazette = createAsyncThunk(
         withCredentials: true,
       });
       return data;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || "Scan failed");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(error.response?.data?.message || "Scan failed");
     }
   }
 );
@@ -78,8 +79,9 @@ export const fetchGazettes = createAsyncThunk(
     try {
       const { data } = await api.get("/gazette/all", { withCredentials: true });
       return data.gazettes || [];
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || "Failed to fetch gazettes");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch gazettes");
     }
   }
 );
@@ -90,8 +92,9 @@ export const fetchGazetteDetails = createAsyncThunk(
     try {
       const { data } = await api.get(`/gazette/${gazetteId}`, { withCredentials: true });
       return data.gazette;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || "Failed to fetch details");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch details");
     }
   }
 );
@@ -102,8 +105,9 @@ export const fetchScanLogs = createAsyncThunk(
     try {
       const { data } = await api.get("/gazette/logs", { withCredentials: true });
       return data.logs || [];
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || "Failed to fetch logs");
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch logs");
     }
   }
 );
@@ -175,7 +179,7 @@ const gazetteScannerSlice = createSlice({
         state.detailsLoadingId = null;
         state.gazetteDetails = action.payload;
         
-        // Update the cached gazette in the list if it exists
+        // Update the cached gazette in the list when it exists
         const index = state.gazettes.findIndex((g) => g._id === action.payload._id);
         if (index !== -1) {
           state.gazettes[index] = { ...state.gazettes[index], fullCases: action.payload.cases };
