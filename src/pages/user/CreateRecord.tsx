@@ -12,7 +12,7 @@ import Select, { type GroupBase, type StylesConfig } from "react-select";
 import toast, { Toaster } from "react-hot-toast";
 
 /* ================================
-   CONSTANTS & STYLES
+    CONSTANTS & TYPES
 ================================ */
 
 const rejectionReasons = [
@@ -41,7 +41,7 @@ const rejectionReasons = [
   "FORM 60 missing",
   "Two Deceased in one Form 60",
   "Kindly confirm the deceased name",
-   "Place of death not indicated"
+  "Place of death not indicated"
 ];
 
 interface SelectOption {
@@ -54,12 +54,12 @@ interface RejectionOption {
   label: string;
 }
 
-interface SelectState {
-  isFocused: boolean;
-}
-
-const selectStyles: StylesConfig<SelectOption, false, GroupBase<SelectOption>> = {
-  control: (base, state: SelectState) => ({
+/**
+ * Base styles using 'unknown' to avoid ESLint 'no-explicit-any' 
+ * while remaining flexible for multiple option types.
+ */
+const commonSelectStyles: StylesConfig<unknown, false, GroupBase<unknown>> = {
+  control: (base, state) => ({
     ...base,
     borderRadius: "0.75rem",
     padding: "3px",
@@ -81,34 +81,28 @@ const selectStyles: StylesConfig<SelectOption, false, GroupBase<SelectOption>> =
   }),
 };
 
-// Reusable Tailwind Class for Inputs
 const inputClass =
   "w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm";
 const labelClass =
   "text-[10px] font-black uppercase tracking-wider text-slate-400 ml-1 mb-1 block";
 
-// Helper function to calculate lead time
 const calculateLeadTime = (dateReceived: string, dateOfReceipt: string): number => {
-  if (!dateReceived) return 0;
+  if (!dateReceived || !dateOfReceipt) return 0;
   const start = new Date(dateReceived);
-  if (isNaN(start.getTime())) return 0;
-  if (!dateOfReceipt) return 0;
   const end = new Date(dateOfReceipt);
-  if (isNaN(end.getTime())) return 0;
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
   return Math.max(0, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
 };
 
 /* ================================
-   COMPONENT
+    COMPONENT
 ================================ */
 
 const CreateRecordPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
 
   const { loading, error } = useSelector((s: RootState) => s.records);
-  const { courts, loading: courtsLoading } = useSelector(
-    (s: RootState) => s.courts,
-  );
+  const { courts, loading: courtsLoading } = useSelector((s: RootState) => s.courts);
 
   const [formData, setFormData] = useState({
     courtStation: null as Court | null,
@@ -122,7 +116,6 @@ const CreateRecordPage: React.FC = () => {
     customRejection: "",
   });
 
-  // Calculate lead time directly during render
   const leadTime = useMemo(
     () => calculateLeadTime(formData.dateReceived, formData.dateOfReceipt),
     [formData.dateReceived, formData.dateOfReceipt]
@@ -134,15 +127,20 @@ const CreateRecordPage: React.FC = () => {
 
   const courtOptions = useMemo(
     () => courts.map((c) => ({ value: c, label: c.name })),
-    [courts],
+    [courts]
   );
+
+  const rejectionOptions: RejectionOption[] = useMemo(() => [
+    ...rejectionReasons.map((r) => ({ value: r, label: r })),
+    { value: "Other", label: "Other (Manual Entry)" },
+  ], []);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       const { name, value } = e.target;
       setFormData((p) => ({ ...p, [name]: value }));
     },
-    [],
+    []
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -168,8 +166,7 @@ const CreateRecordPage: React.FC = () => {
 
     let finalRejection: string | undefined;
     if (form60Compliance === "Rejected") {
-      finalRejection =
-        rejectionReason === "Other" ? customRejection.trim() : rejectionReason;
+      finalRejection = rejectionReason === "Other" ? customRejection.trim() : rejectionReason;
       if (!finalRejection) {
         toast.error("⚠️ Rejection reason required");
         return;
@@ -211,28 +208,20 @@ const CreateRecordPage: React.FC = () => {
     if (error) toast.error(error);
   }, [error]);
 
-  const rejectionOptions: RejectionOption[] = [
-    ...rejectionReasons.map((r) => ({ value: r, label: r })),
-    { value: "Other", label: "Other (Manual Entry)" },
-  ];
-
   return (
     <div className="min-h-screen bg-[#F8FAFC] py-12 px-4">
       <Toaster position="top-right" />
 
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden">
-          {/* Judicial Header */}
+          {/* Header */}
           <div className="bg-[#1a3a32] p-8 text-white relative">
             <div className="relative z-10">
-              <h2 className="text-2xl font-black uppercase tracking-tight">
-                New Court Record
-              </h2>
+              <h2 className="text-2xl font-black uppercase tracking-tight">New Court Record</h2>
               <p className="text-emerald-400 text-xs font-bold uppercase tracking-widest mt-1">
                 Principal Registry Entry Portal
               </p>
             </div>
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl" />
           </div>
 
           <form onSubmit={handleSubmit} className="p-8 space-y-8">
@@ -242,113 +231,51 @@ const CreateRecordPage: React.FC = () => {
                 <label className={labelClass}>Court Station *</label>
                 <Select<SelectOption>
                   options={courtOptions}
-                  styles={selectStyles}
+                  styles={commonSelectStyles as StylesConfig<SelectOption, false, GroupBase<SelectOption>>}
                   isLoading={courtsLoading}
                   placeholder="Search and select court station..."
-                  value={
-                    formData.courtStation
-                      ? {
-                          value: formData.courtStation,
-                          label: formData.courtStation.name,
-                        }
-                      : null
-                  }
-                  onChange={(opt: SelectOption | null) =>
-                    setFormData((p) => ({
-                      ...p,
-                      courtStation: opt ? opt.value : null,
-                    }))
-                  }
+                  value={formData.courtStation ? { value: formData.courtStation, label: formData.courtStation.name } : null}
+                  onChange={(opt) => setFormData((p) => ({ ...p, courtStation: opt ? opt.value : null }))}
                 />
               </div>
 
-              {/* Cause No & Deceased */}
+              {/* Identification Details */}
               <div>
                 <label className={labelClass}>Cause Number *</label>
-                <input
-                  name="causeNo"
-                  value={formData.causeNo}
-                  onChange={handleChange}
-                  placeholder="e.g., E123 of 2024 OR E123OF2020"
-                  className={inputClass}
-                  required
-                />
+                <input name="causeNo" value={formData.causeNo} onChange={handleChange} className={inputClass} required />
               </div>
 
               <div>
                 <label className={labelClass}>Name of Deceased *</label>
-                <input
-                  name="nameOfDeceased"
-                  value={formData.nameOfDeceased}
-                  onChange={handleChange}
-                  placeholder="FULL LEGAL NAME"
-                  className={`${inputClass} uppercase font-medium`}
-                  required
-                />
+                <input name="nameOfDeceased" value={formData.nameOfDeceased} onChange={handleChange} className={`${inputClass} uppercase`} required />
               </div>
 
-              {/* Dates */}
+              {/* Timeline */}
               <div>
-                <label className={labelClass}>
-                  Date Received at Registry *
-                </label>
-                <input
-                  type="date"
-                  name="dateReceived"
-                  value={formData.dateReceived}
-                  onChange={handleChange}
-                  className={inputClass}
-                  required
-                />
+                <label className={labelClass}>Date Received at Registry *</label>
+                <input type="date" name="dateReceived" value={formData.dateReceived} onChange={handleChange} className={inputClass} required />
               </div>
 
               <div>
-                <label className={labelClass}>
-                  Date of Receipt (e-Citizen)
-                </label>
-                <input
-                  type="date"
-                  name="dateOfReceipt"
-                  value={formData.dateOfReceipt}
-                  onChange={handleChange}
-                  className={inputClass}
-                />
+                <label className={labelClass}>Date of Receipt (e-Citizen)</label>
+                <input type="date" name="dateOfReceipt" value={formData.dateOfReceipt} onChange={handleChange} className={inputClass} />
               </div>
 
-              {/* KPI Alert Section - Now using calculated leadTime */}
               <div className="md:col-span-1">
                 <label className={labelClass}>Lead Time Benchmark</label>
-                <div
-                  className={`px-4 py-2.5 rounded-xl border flex items-center justify-between transition-all ${
-                    leadTime > 30
-                      ? "bg-red-50 border-red-200 text-red-700 shadow-inner"
-                      : "bg-slate-50 border-slate-200 text-slate-600"
-                  }`}
-                >
-                  <span className="text-sm font-bold">
-                    {leadTime} Days
-                  </span>
-                  {leadTime > 30 && (
-                    <span className="text-[9px] font-black bg-red-600 text-white px-2 py-0.5 rounded-full uppercase">
-                      KPI Delay
-                    </span>
-                  )}
+                <div className={`px-4 py-2.5 rounded-xl border flex items-center justify-between ${leadTime > 30 ? "bg-red-50 border-red-200 text-red-700" : "bg-slate-50 border-slate-200 text-slate-600"}`}>
+                  <span className="text-sm font-bold">{leadTime} Days</span>
+                  {leadTime > 30 && <span className="text-[9px] font-black bg-red-600 text-white px-2 py-0.5 rounded-full uppercase">KPI Delay</span>}
                 </div>
               </div>
 
               <div>
                 <label className={labelClass}>Date Forwarded to G.P.</label>
-                <input
-                  type="date"
-                  name="dateForwardedToGP"
-                  value={formData.dateForwardedToGP}
-                  onChange={handleChange}
-                  className={inputClass}
-                />
+                <input type="date" name="dateForwardedToGP" value={formData.dateForwardedToGP} onChange={handleChange} className={inputClass} />
               </div>
             </div>
 
-            {/* Compliance Status */}
+            {/* Compliance Section */}
             <div className="pt-6 border-t border-slate-100">
               <label className={labelClass}>Compliance Verdict</label>
               <div className="flex gap-4">
@@ -356,18 +283,11 @@ const CreateRecordPage: React.FC = () => {
                   <button
                     key={status}
                     type="button"
-                    onClick={() =>
-                      setFormData((p) => ({
-                        ...p,
-                        form60Compliance: status as Form60Compliance,
-                      }))
-                    }
+                    onClick={() => setFormData((p) => ({ ...p, form60Compliance: status as Form60Compliance }))}
                     className={`flex-1 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all border ${
                       formData.form60Compliance === status
-                        ? status === "Approved"
-                          ? "bg-emerald-50 border-emerald-500 text-emerald-700 ring-4 ring-emerald-500/10"
-                          : "bg-red-50 border-red-500 text-red-700 ring-4 ring-red-500/10"
-                        : "bg-white border-slate-200 text-slate-400 hover:border-slate-300"
+                        ? status === "Approved" ? "bg-emerald-50 border-emerald-500 text-emerald-700 ring-2 ring-emerald-500/10" : "bg-red-50 border-red-500 text-red-700 ring-2 ring-red-500/10"
+                        : "bg-white border-slate-200 text-slate-400"
                     }`}
                   >
                     {status}
@@ -376,49 +296,24 @@ const CreateRecordPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Rejection Reasons Overlay */}
+            {/* Conditional Rejection UI */}
             {formData.form60Compliance === "Rejected" && (
-              <div className="bg-red-50/50 p-6 rounded-2xl border border-red-100 space-y-4 animate-in fade-in slide-in-from-top-4 duration-300">
-                <label className="text-[10px] font-black uppercase tracking-wider text-red-600 block">
-                  Primary Rejection Reason
-                </label>
+              <div className="bg-red-50/50 p-6 rounded-2xl border border-red-100 space-y-4 animate-in fade-in slide-in-from-top-2">
+                <label className="text-[10px] font-black uppercase tracking-wider text-red-600 block">Primary Rejection Reason</label>
                 <Select<RejectionOption>
-                  styles={selectStyles as StylesConfig<RejectionOption>}
+                  styles={commonSelectStyles as StylesConfig<RejectionOption, false, GroupBase<RejectionOption>>}
                   options={rejectionOptions}
-                  onChange={(opt: RejectionOption | null) =>
-                    setFormData((p) => ({
-                      ...p,
-                      rejectionReason: opt?.value || "",
-                      customRejection: "",
-                    }))
-                  }
+                  placeholder="Select reason..."
+                  onChange={(opt) => setFormData((p) => ({ ...p, rejectionReason: opt?.value || "", customRejection: "" }))}
                 />
                 {formData.rejectionReason === "Other" && (
-                  <input
-                    name="customRejection"
-                    value={formData.customRejection}
-                    onChange={handleChange}
-                    placeholder="Type custom rejection details..."
-                    className={`${inputClass} border-red-200 bg-white`}
-                    required
-                  />
+                  <input name="customRejection" value={formData.customRejection} onChange={handleChange} placeholder="Type custom details..." className={`${inputClass} border-red-200 bg-white`} required />
                 )}
               </div>
             )}
 
-            {/* Submission Action */}
-            <button
-              disabled={loading}
-              className="w-full bg-[#1a3a32] hover:bg-[#122923] text-white py-4 rounded-2xl font-black uppercase tracking-[0.2em] shadow-lg shadow-emerald-900/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-sm mt-4"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Processing...
-                </span>
-              ) : (
-                "Commit Record to Registry"
-              )}
+            <button disabled={loading} className="w-full bg-[#1a3a32] hover:bg-[#122923] text-white py-4 rounded-2xl font-black uppercase tracking-[0.2em] transition-all disabled:opacity-60 text-sm mt-4 shadow-lg shadow-emerald-900/10">
+              {loading ? "Committing..." : "Commit Record to Registry"}
             </button>
           </form>
         </div>
