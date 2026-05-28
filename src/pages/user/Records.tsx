@@ -46,6 +46,7 @@ const RecordPage: React.FC = () => {
   const [courtFilter, setCourtFilter] = useState("");
   const [courtSearch, setCourtSearch] = useState("");
   const [showCourtDropdown, setShowCourtDropdown] = useState(false);
+  const [sortOption, setSortOption] = useState<string>("latest"); // "latest", "leadTimeHigh", "forwardLeadTimeHigh"
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 25;
@@ -55,18 +56,39 @@ const RecordPage: React.FC = () => {
     dispatch(fetchRecords());
   }, [dispatch]);
 
-  const filteredRecords = useMemo(() => {
-    return records.filter((r) => {
-      const matchesSearch =
-        !searchTerm ||
-        r.nameOfDeceased?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.causeNo?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesCourt = !courtFilter || r.courtStation?._id === courtFilter;
-      
-      return matchesSearch && matchesCourt;
-    });
-  }, [records, searchTerm, courtFilter]);
+ const filteredRecords = useMemo(() => {
+  const filtered = records.filter((r) => {
+    const matchesSearch =
+      !searchTerm ||
+      r.nameOfDeceased?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.causeNo?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCourt = !courtFilter || r.courtStation?._id === courtFilter;
+    
+    return matchesSearch && matchesCourt;
+  });
+
+  // Apply sorting
+  switch (sortOption) {
+    case "latest":
+      filtered.sort((a, b) => {
+        const dateA = new Date(a.dateReceived).getTime();
+        const dateB = new Date(b.dateReceived).getTime();
+        return dateB - dateA;
+      });
+      break;
+    case "leadTimeHigh":
+      filtered.sort((a, b) => (b.receivingLeadTime ?? 0) - (a.receivingLeadTime ?? 0));
+      break;
+    case "forwardLeadTimeHigh":
+      filtered.sort((a, b) => (b.forwardingLeadTime ?? 0) - (a.forwardingLeadTime ?? 0));
+      break;
+    default:
+      break;
+  }
+
+  return filtered;
+}, [records, searchTerm, courtFilter, sortOption]);
 
   const currentRecords = filteredRecords.slice(
     (currentPage - 1) * itemsPerPage,
@@ -112,6 +134,11 @@ const RecordPage: React.FC = () => {
   const handleEditClick = (record: RecordType) => {
     setSelectedRecord(record);
     setEditMode(true);
+  };
+
+  const handleSortChange = (value: string) => {
+    setSortOption(value);
+    setCurrentPage(1); // reset to first page when sorting changes
   };
 
   return (
@@ -195,6 +222,24 @@ const RecordPage: React.FC = () => {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* SORT DROPDOWN */}
+          <div className="relative w-full lg:w-auto">
+            <select
+              value={sortOption}
+              onChange={(e) => handleSortChange(e.target.value)}
+              className={`w-full px-4 py-3 text-sm font-bold rounded-xl outline-none cursor-pointer transition-all appearance-none ${
+                selectedIds.length > 0
+                  ? "bg-white/10 text-white border border-white/20"
+                  : "bg-slate-50 text-slate-900 border-0 focus:bg-white focus:ring-2 focus:ring-[#004832]/5"
+              }`}
+              style={{ minWidth: "180px" }}
+            >
+              <option value="latest" className="text-slate-900">📅 Latest First</option>
+              <option value="leadTimeHigh" className="text-slate-900">⏱️ Highest Receiving Lead Time</option>
+              <option value="forwardLeadTimeHigh" className="text-slate-900">🚀 Highest Forwarding Lead Time</option>
+            </select>
           </div>
 
           {selectedIds.length > 0 && (

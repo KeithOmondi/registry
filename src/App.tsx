@@ -22,7 +22,7 @@ import RecordsPage from "./pages/user/Records";
 import CreateRecordPage from "./pages/user/CreateRecord";
 import ReportsPage from "./pages/user/Reports";
 import NotForwardedPage from "./pages/user/NotForwarded";
-import ScansPage from "./pages/user/Scans";
+//import ScansPage from "./pages/user/Scans";
 
 /* ================= ADMIN ================= */
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
@@ -40,6 +40,8 @@ import RecordsFormPage from "./pages/Gp/RecordsForm";
 /* ================= AUTH ================= */
 import { Login } from "./pages/auth/Login";
 import Analytics from "./pages/user/Analytics";
+import ScannerPage from "./pages/user/ScannerPage";
+import ProbateExtractor from "./pages/user/ProbateExtractor";
 
 /* ================================================= */
 
@@ -157,7 +159,7 @@ function App() {
           element={
             <ProtectedRoute>
               <UserLayout>
-                <ScansPage />
+                <ScannerPage />
               </UserLayout>
             </ProtectedRoute>
           }
@@ -169,6 +171,17 @@ function App() {
             <ProtectedRoute>
               <UserLayout>
                 <Analytics />
+              </UserLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/records/extract"
+          element={
+            <ProtectedRoute>
+              <UserLayout>
+                <ProbateExtractor />
               </UserLayout>
             </ProtectedRoute>
           }

@@ -14,6 +14,7 @@ const menuItems = [
   { name: "Scanned Records", path: "/records/scans", icon: <ScanLine size={20} /> },
   { name: "Reports", path: "/records/reports", icon: <BarChart3 size={20} /> },
   { name: "Analytics", path: "/records/analytics", icon: <BsFileBarGraph size={20} /> },
+  { name: "Extractor", path: "/records/extract", icon: <BsFileBarGraph size={20} /> },
 ];
 
 interface UserSidebarProps {

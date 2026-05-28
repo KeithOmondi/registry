@@ -1,22 +1,23 @@
-import axios from "axios";
+import axios, { type InternalAxiosRequestConfig } from "axios";
 import { refreshSession, logout } from "../store/slices/authSlice";
+import type { AppStore } from "../store/store";
 
-let store: any;
-export const injectStore = (_store: any) => {
+let store: AppStore;
+
+export const injectStore = (_store: AppStore) => {
   store = _store;
 };
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   withCredentials: true,
-  // REMOVED: "Content-Type": "application/json"
-  // Letting Axios detect the content type automatically is safer for file uploads
 });
 
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest: InternalAxiosRequestConfig & { _retry?: boolean } =
+      error.config;
 
     if (
       error.response?.status === 401 &&
@@ -26,13 +27,12 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       try {
         await store.dispatch(refreshSession()).unwrap();
-        return api(originalRequest); // This will now correctly re-send FormData if the original request was an upload
+        return api(originalRequest);
       } catch (err) {
         store.dispatch(logout());
         return Promise.reject(err);
       }
     }
-
     return Promise.reject(error.response?.data || error);
   }
 );
