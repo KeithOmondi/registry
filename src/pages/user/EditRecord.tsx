@@ -66,6 +66,7 @@ const rejectionReasons = [
   "FORM 60 missing",
   "Two Deceased in one Form 60",
   "Kindly confirm the deceased name",
+  "Place of death not indicated"
 ];
 
 const EditRecord: React.FC<EditRecordProps> = ({ record, onClose }) => {
