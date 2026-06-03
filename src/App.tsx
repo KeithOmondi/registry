@@ -42,6 +42,8 @@ import { Login } from "./pages/auth/Login";
 import Analytics from "./pages/user/Analytics";
 import ScannerPage from "./pages/user/ScannerPage";
 import ProbateExtractor from "./pages/user/ProbateExtractor";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminScan from "./pages/admin/AdminScan";
 
 /* ================================================= */
 
@@ -249,6 +251,28 @@ function App() {
             <ProtectedRoute adminOnly>
               <AdminLayout>
                 <AdminGpRecordsPage />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/analytics"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminLayout>
+                <AdminAnalytics />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/scan"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminLayout>
+                <AdminScan />
               </AdminLayout>
             </ProtectedRoute>
           }

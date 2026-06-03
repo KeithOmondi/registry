@@ -7,6 +7,8 @@ import {
   BarChart3,
   Settings,
 } from "lucide-react";
+import { BsFileBarGraph } from "react-icons/bs";
+import { MdScanner } from "react-icons/md";
 
 interface SidebarItem {
   name: string;
@@ -20,6 +22,8 @@ const menuItems: SidebarItem[] = [
   { name: "Records", path: "/admin/records", icon: <FileText size={20} /> },
   { name: "GP Records", path: "/admin/gp", icon: <FileText size={20} /> },
   { name: "Reports", path: "/admin/reports", icon: <BarChart3 size={20} /> },
+  { name: "Analytics", path: "/admin/analytics", icon: <BsFileBarGraph size={20} /> },
+  { name: "Scanner", path: "/admin/scan", icon: <MdScanner size={20} /> },
   { name: "Settings", path: "/admin/settings", icon: <Settings size={20} /> },
 ];
 
