@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { BsFileBarGraph } from "react-icons/bs";
 import { MdScanner } from "react-icons/md";
+import { GiJusticeStar } from "react-icons/gi";
 
 interface SidebarItem {
   name: string;
@@ -24,6 +25,7 @@ const menuItems: SidebarItem[] = [
   { name: "Reports", path: "/admin/reports", icon: <BarChart3 size={20} /> },
   { name: "Analytics", path: "/admin/analytics", icon: <BsFileBarGraph size={20} /> },
   { name: "Scanner", path: "/admin/scan", icon: <MdScanner size={20} /> },
+  { name: "Courts", path: "/admin/courts", icon: <GiJusticeStar size={20} /> },
   { name: "Settings", path: "/admin/settings", icon: <Settings size={20} /> },
 ];
 
