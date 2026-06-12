@@ -16,7 +16,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
   const location = useLocation();
 
-  const { user, isAuthenticated, status, otpSent } = useSelector(
+  const { user, isAuthenticated, status } = useSelector(
     (state: RootState) => state.auth,
   );
 
@@ -26,42 +26,35 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (status === "loading") return null; // or spinner
 
   /* =====================================
-      2. OTP VERIFICATION FLOW
-  ===================================== */
-  if (otpSent && !isAuthenticated && location.pathname === "/verify-otp") {
-    return <>{children}</>;
-  }
-
-  /* =====================================
-      3. NOT AUTHENTICATED
+      2. NOT AUTHENTICATED
   ===================================== */
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   /* =====================================
-      4. ADMIN-ONLY ROUTES
+      3. ADMIN-ONLY ROUTES
   ===================================== */
   if (adminOnly && user.role !== "admin") {
     return <Navigate to="/dashboard" replace />;
   }
 
   /* =====================================
-      5. GP-ONLY ROUTES
+      4. GP-ONLY ROUTES
   ===================================== */
   if (gpOnly && user.role !== "gp") {
     return <Navigate to="/dashboard" replace />;
   }
 
   /* =====================================
-      6. PREVENT ADMIN ACCESSING USER PAGES
+      5. PREVENT ADMIN ACCESSING USER PAGES
   ===================================== */
   if (!adminOnly && !gpOnly && user.role === "admin") {
     return <Navigate to="/admin" replace />;
   }
 
   /* =====================================
-      7. PREVENT GP ACCESSING USER PAGES
+      6. PREVENT GP ACCESSING USER PAGES
   ===================================== */
   if (!adminOnly && !gpOnly && user.role === "gp") {
     return <Navigate to="/gp" replace />;

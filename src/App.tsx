@@ -44,6 +44,8 @@ import ScannerPage from "./pages/user/ScannerPage";
 import ProbateExtractor from "./pages/user/ProbateExtractor";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminScan from "./pages/admin/AdminScan";
+import AdminCourts from "./pages/admin/AdminCourts";
+import UserSettings from "./pages/user/UserSettings";
 
 /* ================================================= */
 
@@ -51,7 +53,7 @@ function App() {
   const dispatch = useDispatch<AppDispatch>();
 
   const { isAuthenticated, status } = useSelector(
-    (state: RootState) => state.auth
+    (state: RootState) => state.auth,
   );
 
   /* =========================================
@@ -92,11 +94,7 @@ function App() {
         <Route
           path="/login"
           element={
-            isAuthenticated ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <Login />
-            )
+            isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />
           }
         />
 
@@ -184,6 +182,17 @@ function App() {
             <ProtectedRoute>
               <UserLayout>
                 <ProbateExtractor />
+              </UserLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/records/settings"
+          element={
+            <ProtectedRoute>
+              <UserLayout>
+                <UserSettings />
               </UserLayout>
             </ProtectedRoute>
           }
@@ -278,6 +287,17 @@ function App() {
           }
         />
 
+        <Route
+          path="/admin/courts"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminLayout>
+                <AdminCourts />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
         {/* ================= GP ROUTES ================= */}
         <Route
           path="/gp"
@@ -298,10 +318,7 @@ function App() {
         <Route
           path="*"
           element={
-            <Navigate
-              to={isAuthenticated ? "/dashboard" : "/login"}
-              replace
-            />
+            <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
           }
         />
       </Routes>

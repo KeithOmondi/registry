@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchCourts,
@@ -12,14 +12,13 @@ import {
 } from "../../store/slices/courtsSlice";
 import type { AppDispatch, RootState } from "../../store/store";
 
-// ── form shape keeps secondaryEmails as a raw string ──
 interface CourtFormData {
   name: string;
   level: CourtLevel;
   magistrate: string;
   phone: string;
   primaryEmail: string;
-  secondaryEmailsRaw: string; // renamed to avoid shadowing Court['secondaryEmails']
+  secondaryEmailsRaw: string;
   code: string;
   location: string;
 }
@@ -35,8 +34,22 @@ const EMPTY_FORM: CourtFormData = {
   location: "",
 };
 
+// Level → badge color map
+const LEVEL_COLORS: Record<string, { bg: string; text: string }> = {
+  "Supreme Court":        { bg: "bg-purple-100",  text: "text-purple-800" },
+  "Court of Appeal":      { bg: "bg-indigo-100",  text: "text-indigo-800" },
+  "High Court":           { bg: "bg-[#004832]/10", text: "text-[#004832]" },
+  "Employment & Labour":  { bg: "bg-orange-100",  text: "text-orange-800" },
+  "Environment & Land":   { bg: "bg-teal-100",    text: "text-teal-800" },
+  "Law Courts":           { bg: "bg-blue-100",    text: "text-blue-800" },
+  "Magistrates Court":    { bg: "bg-yellow-100",  text: "text-yellow-800" },
+  "Kadhi Court":          { bg: "bg-rose-100",    text: "text-rose-800" },
+};
+
+const getLevelBadge = (level: string) =>
+  LEVEL_COLORS[level] ?? { bg: "bg-gray-100", text: "text-gray-700" };
+
 const AdminCourts = () => {
-  // ✅ typed dispatch — required for thunks to resolve correctly
   const dispatch = useDispatch<AppDispatch>();
   const { courts, loading, error } = useSelector(
     (state: RootState) => state.courts
@@ -46,9 +59,29 @@ const AdminCourts = () => {
   const [editingCourt, setEditingCourt] = useState<Court | null>(null);
   const [formData, setFormData] = useState<CourtFormData>(EMPTY_FORM);
 
+  // Filters
+  const [search, setSearch] = useState("");
+  const [filterLevel, setFilterLevel] = useState<string>("All");
+
   useEffect(() => {
     dispatch(fetchCourts());
   }, [dispatch]);
+
+  // Derived filtered list
+  const filteredCourts = useMemo(() => {
+    const q = search.toLowerCase();
+    return courts.filter((c) => {
+      const matchesSearch =
+        !q ||
+        c.name.toLowerCase().includes(q) ||
+        c.primaryEmail.toLowerCase().includes(q) ||
+        (c.code ?? "").toLowerCase().includes(q) ||
+        (c.location ?? "").toLowerCase().includes(q) ||
+        (c.magistrate ?? "").toLowerCase().includes(q);
+      const matchesLevel = filterLevel === "All" || c.level === filterLevel;
+      return matchesSearch && matchesLevel;
+    });
+  }, [courts, search, filterLevel]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -84,7 +117,6 @@ const AdminCourts = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const courtData = {
       name: formData.name,
       level: formData.level,
@@ -100,16 +132,10 @@ const AdminCourts = () => {
 
     if (editingCourt) {
       const result = await dispatch(updateCourt({ id: editingCourt._id, data: courtData }));
-      if (updateCourt.fulfilled.match(result)) {
-        setIsModalOpen(false);
-        resetForm();
-      }
+      if (updateCourt.fulfilled.match(result)) { setIsModalOpen(false); resetForm(); }
     } else {
       const result = await dispatch(createCourt(courtData));
-      if (createCourt.fulfilled.match(result)) {
-        setIsModalOpen(false);
-        resetForm();
-      }
+      if (createCourt.fulfilled.match(result)) { setIsModalOpen(false); resetForm(); }
     }
   };
 
@@ -119,159 +145,212 @@ const AdminCourts = () => {
     }
   };
 
-  // ── derive separate flags so a mutation doesn't collapse the table ──
   const isSubmitting = loading && isModalOpen;
   const isTableLoading = loading && !isModalOpen;
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Manage Courts</h1>
+    <div className="p-6 bg-gray-50 min-h-screen">
+
+      {/* ── Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-[#004832] font-serif uppercase tracking-wide">
+            Court Stations
+          </h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {courts.length} station{courts.length !== 1 ? "s" : ""} registered
+          </p>
+        </div>
         <button
           onClick={handleCreateClick}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          className="inline-flex items-center gap-2 bg-[#004832] text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-[#003a28] transition-colors shadow-sm"
         >
-          + Add New Court
+          <span className="text-lg leading-none">+</span> Add Court Station
         </button>
       </div>
 
-      {/* Error */}
+      {/* ── Error Banner ── */}
       {error && (
-        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-          <span className="block sm:inline">{error}</span>
-          <button
-            onClick={() => dispatch(clearCourtsError())}
-            className="absolute top-0 bottom-0 right-0 px-4 py-3"
-          >
-            ×
-          </button>
+        <div className="mb-4 bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-xl flex justify-between items-start">
+          <span className="text-sm">{error}</span>
+          <button onClick={() => dispatch(clearCourtsError())} className="ml-4 text-red-500 hover:text-red-700 font-bold text-lg leading-none">×</button>
         </div>
       )}
 
-      {/* Table loading */}
+      {/* ── Filters ── */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4 flex flex-col sm:flex-row gap-3">
+        {/* Search */}
+        <div className="relative flex-1">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search by name, email, code, location…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#004832]/20 focus:border-[#004832] transition-all"
+          />
+        </div>
+
+        {/* Level filter */}
+        <select
+          value={filterLevel}
+          onChange={(e) => setFilterLevel(e.target.value)}
+          className="text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#004832]/20 focus:border-[#004832] transition-all bg-white min-w-[180px]"
+        >
+          <option value="All">All Levels</option>
+          {Object.values(CourtLevels).map((l) => (
+            <option key={l} value={l}>{l}</option>
+          ))}
+        </select>
+
+        {/* Clear filters */}
+        {(search || filterLevel !== "All") && (
+          <button
+            onClick={() => { setSearch(""); setFilterLevel("All"); }}
+            className="text-sm text-[#004832] font-medium hover:underline whitespace-nowrap px-1"
+          >
+            Clear filters
+          </button>
+        )}
+      </div>
+
+      {/* ── Table ── */}
       {isTableLoading ? (
-        <div className="text-center py-8">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-          <p className="mt-2 text-gray-600">Loading...</p>
+        <div className="text-center py-16">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#004832]" />
+          <p className="mt-3 text-gray-500 text-sm">Loading court stations…</p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                {["Name", "Level", "Code", "Primary Email", "Location", "Actions"].map((h) => (
-                  <th
-                    key={h}
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-100">
+            <thead>
+              <tr className="bg-[#004832]/5">
+                {["Court Name", "Level", "Code", "Primary Email", "Location", "Actions"].map((h) => (
+                  <th key={h} className="px-5 py-3.5 text-left text-xs font-semibold text-[#004832] uppercase tracking-wider">
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {courts.length === 0 ? (
+            <tbody className="divide-y divide-gray-50">
+              {filteredCourts.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                    No courts found. Click "Add New Court" to create one.
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400 text-sm">
+                    {search || filterLevel !== "All"
+                      ? "No courts match your search criteria."
+                      : 'No courts found. Click "Add Court Station" to create one.'}
                   </td>
                 </tr>
               ) : (
-                courts.map((court) => (
-                  <tr key={court._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{court.name}</div>
-                      {court.magistrate && (
-                        <div className="text-sm text-gray-500">Magistrate: {court.magistrate}</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {court.level}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {court.code || "—"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {court.primaryEmail}
-                      {court.secondaryEmails && court.secondaryEmails.length > 0 && (
-                        <div className="text-xs text-gray-400">
-                          +{court.secondaryEmails.length} more
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {court.location || "—"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleEditClick(court)}
-                        className="text-indigo-600 hover:text-indigo-900 mr-3"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(court._id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                filteredCourts.map((court) => {
+                  const badge = getLevelBadge(court.level);
+                  return (
+                    <tr key={court._id} className="hover:bg-[#004832]/[0.02] transition-colors">
+                      <td className="px-5 py-4">
+                        <div className="text-sm font-semibold text-gray-800">{court.name}</div>
+                        {court.magistrate && (
+                          <div className="text-xs text-gray-400 mt-0.5">{court.magistrate}</div>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        <span className={`px-2.5 py-1 inline-flex text-xs font-semibold rounded-full ${badge.bg} ${badge.text}`}>
+                          {court.level}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                        {court.code || "—"}
+                      </td>
+                      <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {court.primaryEmail}
+                        {court.secondaryEmails && court.secondaryEmails.length > 0 && (
+                          <div className="text-xs text-gray-400 mt-0.5">
+                            +{court.secondaryEmails.length} more
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {court.location || "—"}
+                      </td>
+                      <td className="px-5 py-4 whitespace-nowrap text-sm">
+                        <button
+                          onClick={() => handleEditClick(court)}
+                          className="inline-flex items-center gap-1 text-[#004832] hover:text-[#003a28] font-medium mr-4 transition-colors"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.5-6.5a2 2 0 012.828 2.828L11.828 15.828a2 2 0 01-1.414.586H8v-2.414a2 2 0 01.586-1.414z" />
+                          </svg>
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(court._id)}
+                          className="inline-flex items-center gap-1 text-red-500 hover:text-red-700 font-medium transition-colors"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
+                          </svg>
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
+
+          {/* Result count footer */}
+          {filteredCourts.length > 0 && (
+            <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
+              Showing {filteredCourts.length} of {courts.length} court station{courts.length !== 1 ? "s" : ""}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Modal */}
+      {/* ── Modal ── */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-lg bg-white">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-800">
-                {editingCourt ? "Edit Court" : "Add New Court"}
-              </h2>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-start justify-center pt-16 px-4 pb-8">
+          <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl">
+            {/* Modal header */}
+            <div className="flex justify-between items-center px-6 py-5 border-b border-gray-100">
+              <div>
+                <h2 className="text-lg font-bold text-[#004832] font-serif uppercase tracking-wide">
+                  {editingCourt ? "Edit Court Station" : "Add Court Station"}
+                </h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {editingCourt ? `Editing: ${editingCourt.name}` : "Fill in the details below"}
+                </p>
+              </div>
               <button
                 onClick={() => { setIsModalOpen(false); resetForm(); }}
-                className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none transition-colors"
               >
                 ×
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Modal body */}
+            <form onSubmit={handleSubmit} className="p-6 space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
                 {/* Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Court Name *
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
+                    Court Name <span className="text-red-400">*</span>
                   </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
+                  <input type="text" name="name" value={formData.name} onChange={handleInputChange} required
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#004832]/20 focus:border-[#004832] transition-all" />
                 </div>
 
                 {/* Level */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Court Level *
+                  <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
+                    Court Level <span className="text-red-400">*</span>
                   </label>
-                  <select
-                    name="level"
-                    value={formData.level}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  >
+                  <select name="level" value={formData.level} onChange={handleInputChange} required
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#004832]/20 focus:border-[#004832] transition-all bg-white">
                     {Object.values(CourtLevels).map((level) => (
                       <option key={level} value={level}>{level}</option>
                     ))}
@@ -280,102 +359,66 @@ const AdminCourts = () => {
 
                 {/* Code */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Court Code</label>
-                  <input
-                    type="text"
-                    name="code"
-                    value={formData.code}
-                    onChange={handleInputChange}
-                    placeholder="e.g. HC001"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
+                  <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Court Code</label>
+                  <input type="text" name="code" value={formData.code} onChange={handleInputChange} placeholder="e.g. HC001"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#004832]/20 focus:border-[#004832] transition-all" />
                 </div>
 
                 {/* Location */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                  <input
-                    type="text"
-                    name="location"
-                    value={formData.location}
-                    onChange={handleInputChange}
-                    placeholder="City, Address"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-
-                {/* Primary Email */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Primary Email *
-                  </label>
-                  <input
-                    type="email"
-                    name="primaryEmail"
-                    value={formData.primaryEmail}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-
-                {/* Secondary Emails */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Secondary Emails
-                  </label>
-                  <input
-                    type="text"
-                    name="secondaryEmailsRaw"
-                    value={formData.secondaryEmailsRaw}
-                    onChange={handleInputChange}
-                    placeholder="email1@example.com, email2@example.com"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Separate multiple emails with commas</p>
+                  <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Location</label>
+                  <input type="text" name="location" value={formData.location} onChange={handleInputChange} placeholder="City, Address"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#004832]/20 focus:border-[#004832] transition-all" />
                 </div>
 
                 {/* Magistrate */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Magistrate Name
-                  </label>
-                  <input
-                    type="text"
-                    name="magistrate"
-                    value={formData.magistrate}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
+                  <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Presiding Officer</label>
+                  <input type="text" name="magistrate" value={formData.magistrate} onChange={handleInputChange}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#004832]/20 focus:border-[#004832] transition-all" />
                 </div>
 
                 {/* Phone */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
+                  <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Phone Number</label>
+                  <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#004832]/20 focus:border-[#004832] transition-all" />
+                </div>
+
+                {/* Primary Email */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
+                    Primary Email <span className="text-red-400">*</span>
+                  </label>
+                  <input type="email" name="primaryEmail" value={formData.primaryEmail} onChange={handleInputChange} required
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#004832]/20 focus:border-[#004832] transition-all" />
+                </div>
+
+                {/* Secondary Emails */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Secondary Emails</label>
+                  <input type="text" name="secondaryEmailsRaw" value={formData.secondaryEmailsRaw} onChange={handleInputChange}
+                    placeholder="email1@example.com, email2@example.com"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#004832]/20 focus:border-[#004832] transition-all" />
+                  <p className="text-xs text-gray-400 mt-1">Separate multiple emails with commas</p>
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-3 pt-4">
+              {/* Actions */}
+              <div className="flex justify-end gap-3 pt-2 border-t border-gray-100 mt-2">
                 <button
                   type="button"
                   onClick={() => { setIsModalOpen(false); resetForm(); }}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                  className="px-5 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 bg-[#004832] text-white rounded-xl text-sm font-semibold hover:bg-[#003a28] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {isSubmitting ? "Saving..." : editingCourt ? "Update Court" : "Create Court"}
+                  {isSubmitting ? "Saving…" : editingCourt ? "Update Station" : "Create Station"}
                 </button>
               </div>
             </form>
