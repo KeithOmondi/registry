@@ -32,12 +32,16 @@ const Reports: React.FC = () => {
   const [gpStatusFilter, setGpStatusFilter] = useState("all");
   const [startDate, setStartDate] = useState("");
 
+  // ========== NEW: Month & Year filters ==========
+  const [filterMonth, setFilterMonth] = useState("");      // "1".."12"
+  const [filterYear, setFilterYear] = useState("");        // "2024", etc.
+
   /**
    * FIX: "Impure function during render"
-   * Using a state initializer function ensures the ID is generated only ONCE 
+   * Using a state initializer function ensures the ID is generated only ONCE
    * when the component mounts, keeping the render phase pure.
    */
-  const [reportId] = useState(() => 
+  const [reportId] = useState(() =>
     `ORHC-ADM-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`
   );
 
@@ -46,12 +50,22 @@ const Reports: React.FC = () => {
     dispatch(fetchRecords());
   }, [dispatch]);
 
+  // ========== NEW: Generate year options from existing records ==========
+  const yearOptions = useMemo(() => {
+    const years = new Set<string>();
+    records.forEach((record) => {
+      if (record.dateReceived) {
+        const year = new Date(record.dateReceived).getFullYear().toString();
+        years.add(year);
+      }
+    });
+    // Sort descending (latest first)
+    return Array.from(years).sort((a, b) => b.localeCompare(a));
+  }, [records]);
+
   /* =======================
       HELPERS
   ======================== */
-  /**
-   * FIX: Unexpected any. Specify a different type.
-   */
   const renderLeadTime = (value: string | number | null | undefined) => {
     if (typeof value === 'number') return `${value}d`;
     if (typeof value === 'string' && value !== "" && !isNaN(Number(value))) {
@@ -66,23 +80,43 @@ const Reports: React.FC = () => {
   };
 
   /* =======================
-      FILTER LOGIC
+      FILTER LOGIC (updated with month/year)
   ======================== */
   const filteredRecords = useMemo(() => {
     return records
       .filter((r) => {
+        // Existing filters
         const matchesCourt = courtFilter === "all" || r.courtStation?._id === courtFilter;
         const matchesCompliance = complianceFilter === "all" || r.form60Compliance === complianceFilter;
-        const matchesGP = gpStatusFilter === "all" || 
-                          (gpStatusFilter === "Forwarded" && r.dateForwardedToGP) || 
-                          (gpStatusFilter === "Not Forwarded" && !r.dateForwardedToGP);
+        const matchesGP = gpStatusFilter === "all" ||
+          (gpStatusFilter === "Forwarded" && r.dateForwardedToGP) ||
+          (gpStatusFilter === "Not Forwarded" && !r.dateForwardedToGP);
         const recordDate = r.dateReceived ? new Date(r.dateReceived) : null;
         const start = startDate ? new Date(startDate) : null;
+        const matchesStartDate = !start || (recordDate && recordDate >= start);
 
-        return matchesCourt && matchesCompliance && matchesGP && (!start || (recordDate && recordDate >= start));
+        // ========== NEW: month/year filtering ==========
+        let matchesMonthYear = true;
+        if (recordDate) {
+          const recordMonth = (recordDate.getMonth() + 1).toString();
+          const recordYear = recordDate.getFullYear().toString();
+
+          if (filterMonth && filterYear) {
+            matchesMonthYear = recordMonth === filterMonth && recordYear === filterYear;
+          } else if (filterMonth) {
+            matchesMonthYear = recordMonth === filterMonth;
+          } else if (filterYear) {
+            matchesMonthYear = recordYear === filterYear;
+          }
+        } else {
+          // If dateReceived is missing, only match if no month/year filter is active
+          matchesMonthYear = !filterMonth && !filterYear;
+        }
+
+        return matchesCourt && matchesCompliance && matchesGP && matchesStartDate && matchesMonthYear;
       })
       .sort((a, b) => (Number(b.no) || 0) - (Number(a.no) || 0));
-  }, [records, courtFilter, complianceFilter, gpStatusFilter, startDate]);
+  }, [records, courtFilter, complianceFilter, gpStatusFilter, startDate, filterMonth, filterYear]);
 
   const stats = useMemo(() => ({
     total: filteredRecords.length,
@@ -95,6 +129,16 @@ const Reports: React.FC = () => {
     contentRef: reportRef,
     documentTitle: reportId,
   });
+
+  // Reset all filters (including month/year)
+  const resetAllFilters = () => {
+    setCourtFilter("all");
+    setComplianceFilter("all");
+    setGpStatusFilter("all");
+    setStartDate("");
+    setFilterMonth("");
+    setFilterYear("");
+  };
 
   return (
     <div className="p-6 md:p-10 bg-[#F4F7F6] min-h-screen font-sans text-slate-900">
@@ -142,7 +186,7 @@ const Reports: React.FC = () => {
         ))}
       </div>
 
-      {/* FILTER BAR */}
+      {/* FILTER BAR (updated with month/year) */}
       <div className="max-w-[1600px] mx-auto bg-white/80 backdrop-blur-md sticky top-6 z-20 border border-slate-200 p-4 rounded-[2.5rem] shadow-xl flex flex-wrap gap-4 items-center mb-12 no-print">
         <div className="flex items-center gap-2 px-4 py-2 border-r border-slate-200">
           <Filter size={16} className="text-emerald-600" />
@@ -162,8 +206,56 @@ const Reports: React.FC = () => {
           <option value="Forwarded">Forwarded</option>
           <option value="Not Forwarded">Not Forwarded</option>
         </select>
-        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="flex-1 min-w-[150px] bg-slate-50 rounded-xl px-4 py-2 text-sm font-bold outline-none border border-transparent focus:border-emerald-500 transition-all" />
-        <button onClick={() => { setCourtFilter("all"); setComplianceFilter("all"); setGpStatusFilter("all"); setStartDate(""); }} className="p-3 bg-slate-100 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all"><RotateCcw size={18} /></button>
+
+        {/* ========== NEW: Month filter ========== */}
+        <select
+          value={filterMonth}
+          onChange={(e) => setFilterMonth(e.target.value)}
+          className="flex-1 min-w-[140px] bg-transparent text-sm font-bold p-2 outline-none"
+        >
+          <option value="">All Months</option>
+          <option value="1">January</option>
+          <option value="2">February</option>
+          <option value="3">March</option>
+          <option value="4">April</option>
+          <option value="5">May</option>
+          <option value="6">June</option>
+          <option value="7">July</option>
+          <option value="8">August</option>
+          <option value="9">September</option>
+          <option value="10">October</option>
+          <option value="11">November</option>
+          <option value="12">December</option>
+        </select>
+
+        {/* ========== NEW: Year filter ========== */}
+        <select
+          value={filterYear}
+          onChange={(e) => setFilterYear(e.target.value)}
+          className="flex-1 min-w-[120px] bg-transparent text-sm font-bold p-2 outline-none"
+        >
+          <option value="">All Years</option>
+          {yearOptions.map((year) => (
+            <option key={year} value={year}>{year}</option>
+          ))}
+        </select>
+
+        {/* Existing start date picker (optional, kept for flexibility) */}
+        <input
+          type="date"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+          className="flex-1 min-w-[150px] bg-slate-50 rounded-xl px-4 py-2 text-sm font-bold outline-none border border-transparent focus:border-emerald-500 transition-all"
+          placeholder="From date"
+        />
+
+        {/* Reset button - now clears month & year too */}
+        <button
+          onClick={resetAllFilters}
+          className="p-3 bg-slate-100 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all"
+        >
+          <RotateCcw size={18} />
+        </button>
       </div>
 
       {/* SCROLLABLE CONTAINER */}
@@ -205,7 +297,7 @@ const Reports: React.FC = () => {
                   <th className="p-3 text-[8px] font-black uppercase text-left w-[8%]">Forwarded</th>
                   <th className="p-3 text-[8px] font-black uppercase text-center w-[7%]">Fwd. Lead</th>
                   <th className="p-3 text-[8px] font-black uppercase text-right w-[10%]">Status</th>
-                </tr>
+                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredRecords.map((r) => (
@@ -225,9 +317,9 @@ const Reports: React.FC = () => {
                     <td className="p-3 text-[9px] font-black text-center text-slate-800">{renderLeadTime(r.forwardingLeadTime)}</td>
                     <td className="p-3 text-right">
                       <span className={`px-2 py-0.5 rounded-full text-[7px] font-black uppercase border ${
-                        r.form60Compliance === "Approved" 
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-100" 
-                        : "bg-red-50 text-red-700 border-red-100"
+                        r.form60Compliance === "Approved"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                          : "bg-red-50 text-red-700 border-red-100"
                       }`}>
                         {r.form60Compliance}
                       </span>
@@ -249,7 +341,7 @@ const Reports: React.FC = () => {
             <div className="mt-16 flex justify-between items-end border-t border-slate-200 pt-8">
               <div className="max-w-xs">
                 <p className="text-[7px] text-slate-400 leading-relaxed uppercase font-bold italic">
-                  Administrative Extract: This document is an authorized system audit from the URITHI Registry. 
+                  Administrative Extract: This document is an authorized system audit from the URITHI Registry.
                   Generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}.
                 </p>
               </div>
